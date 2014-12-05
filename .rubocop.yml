@@ -1,0 +1,8 @@
+AllCops:
+  Exclude:
+  - 'omniauth-casport.gemspec'
+  - 'lib/omniauth/casport/version.rb'
+  - 'spec/**/*'
+  - 'vendor/cache/**/*'
+  - 'vendor/bundle/**/*'
+  - '**/gems/**/*'
