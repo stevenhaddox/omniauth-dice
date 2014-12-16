@@ -24,22 +24,28 @@ module OmniAuth
       option :cas_server, nil
       option :authentication_path, nil
       option :ssl_config, {}
+      option :format_header, 'application/json'
+      option :format, 'json'
       option :subject_dn_header, 'HTTP_SSL_CLIENT_S_DN'
       option :issuer_dn_header,  'HTTP_SSL_CLIENT_I_DN'
       # option :client_key_pass, nil
-      # option :format_header, 'application/json'
-      # option :format, 'json'
-      # option :ssl_version, :SSLv3
       # option :debug, nil
       # option :log_file, nil
       # option :fake_dn, nil
 
       private
 
+      # Create a Faraday instance with the cas_server & appropriate SSL config
+      def connection
+        @connection ||= Faraday.new cas_server, ssl: ssl_hash
+      end
+
+      # Specifies which attributes are required arguments to initialize
       def required_params
         [:cas_server, :authentication_path]
       end
 
+      # Verify that arguments required to properly run are present or fail hard
       def validate_required_params(args)
         required_params.each do |param|
           param_present = nil
@@ -54,6 +60,7 @@ module OmniAuth
         end
       end
 
+      # Determine if a specified param symbol exists in the passed argument
       def param_in_arg?(param, arg)
         if arg.class == Hash
           if arg.key?(param.to_sym)
@@ -64,11 +71,6 @@ module OmniAuth
         else
           false
         end
-      end
-
-      # Create a Faraday instance with the cas_server & appropriate SSL config
-      def connection
-        @connection ||= Faraday.new cas_server, ssl: ssl_hash
       end
 
       # Dynamically builds out Faraday's SSL config hash by merging passed

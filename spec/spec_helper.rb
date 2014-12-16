@@ -8,8 +8,10 @@ SimpleCov.start do
 end
 
 require 'capybara/rspec'
+require 'webmock/rspec'
 require 'awesome_print'
 require 'rack/test'
+
 require 'omniauth'
 require 'omniauth/casport'
 

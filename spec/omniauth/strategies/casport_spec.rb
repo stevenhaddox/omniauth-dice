@@ -25,19 +25,19 @@ describe OmniAuth::Strategies::Casport do
 
   context "defaults" do
     subject { valid_subject }
+    it 'should have the correct name' do
+      expect(subject.options.name).to eq('casport')
+    end
 
     it "should return the default options" do
-      expect(subject.options.name).to eq('casport')
-      expect(subject.options.uid_field).to eq(:dn)
+      expect(subject.options.uid_field).to     eq(:dn)
+      expect(subject.options.format).to        eq('json')
+      expect(subject.options.format_header).to eq('application/json')
     end
   end
 
   context "configured with options" do
     subject { valid_subject }
-
-    it 'should have the correct name' do
-      expect(subject.options.name).to eq('casport')
-    end
 
     it 'should have the configured CAS server URL' do
       expect(subject.options.cas_server).to eq("https://casport.dev")
