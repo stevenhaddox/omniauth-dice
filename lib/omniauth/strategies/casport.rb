@@ -1,7 +1,8 @@
 require 'omniauth'
-require 'logging'
+require 'cert_munger'
 
 class RequiredCustomParamError < StandardError; end
+
 module OmniAuth
   module Strategies
     #
@@ -9,11 +10,10 @@ module OmniAuth
     #
     class Casport
       include OmniAuth::Strategy
+      attr_accessor :dn, :raw_dn
       args [:cas_server, :authentication_path]
 
       def initialize(*args)
-        stdout_logger = Logging.logger(STDOUT)
-        @logger = Kernel.const_defined?('Rails') ? Rails.logger : stdout_logger
         validate_required_params(args)
         super
       end
@@ -26,17 +26,63 @@ module OmniAuth
       option :ssl_config, {}
       option :format_header, 'application/json'
       option :format, 'json'
-      option :subject_dn_header, 'HTTP_SSL_CLIENT_S_DN'
-      option :issuer_dn_header,  'HTTP_SSL_CLIENT_I_DN'
+      option :client_cert_header, 'HTTP_SSL_CLIENT_CERT'
+      option :subject_dn_header,  'HTTP_SSL_CLIENT_S_DN'
+      option :issuer_dn_header,   'HTTP_SSL_CLIENT_I_DN'
       # option :client_key_pass, nil
-      # option :debug, nil
-      # option :log_file, nil
       # option :fake_dn, nil
+
+      protected
+
+      def setup_phase(*args)
+        log :debug, 'setup_phase'
+        super
+      end
+
+      def request_phase
+        raw_dn = get_dn_from_header(request.env)
+        log :debug, "#{raw_dn}"
+        raw_dn ||= get_certificate_from_env
+        return fail!('You need a valid DN to authenticate.') if !raw_dn
+        ap options
+        ap request.session
+
+        #['rack.session']['omniauth.origin']
+      end
+
+      def callback_phase
+#        return fail!(:invalid_credentials) if !authentication_response
+#        return fail!(:invalid_credentials) if authentication_response.code.to_i >= 400
+        super
+      end
 
       private
 
+      # Reads the DN from headers
+      def get_dn_from_header(headers)
+        headers["#{options.subject_dn_header}"]
+      end
+
+      # Parses the Subject DN out of an SSL X509 Client Certificate
+      def get_dn_from_certificate(certificate)
+        raw_dn ||= certificate.subject
+      end
+
+      # Parse DN from certificate
+      def get_certificate_from_env
+        cert_str = request.env["#{options.client_cert_header}"]
+        if cert_str
+          client_cert = cert_str.to_cert
+          log :debug, "#{client_cert}"
+          raw_dn ||= get_dn_from_certificate(client_cert)
+          log :debug, "#{raw_dn}"
+        end
+        raw_dn
+      end
+
       # Create a Faraday instance with the cas_server & appropriate SSL config
       def connection
+        log :debug, '.connection'
         @connection ||= Faraday.new cas_server, ssl: ssl_hash
       end
 
@@ -46,6 +92,7 @@ module OmniAuth
       end
 
       # Verify that arguments required to properly run are present or fail hard
+      # NOTE: CANNOT call "log" method from initialize block hooks
       def validate_required_params(args)
         required_params.each do |param|
           param_present = nil
@@ -61,6 +108,7 @@ module OmniAuth
       end
 
       # Determine if a specified param symbol exists in the passed argument
+      # NOTE: CANNOT call "log" method from initialize block hooks
       def param_in_arg?(param, arg)
         if arg.class == Hash
           if arg.key?(param.to_sym)
