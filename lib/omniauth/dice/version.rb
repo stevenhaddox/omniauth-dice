@@ -1,5 +1,5 @@
 module Omniauth
-  module Casport
+  module Dice
     VERSION = '0.0.1'
   end
 end

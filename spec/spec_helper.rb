@@ -11,7 +11,7 @@ require 'capybara/rspec'
 require 'webmock/rspec'
 require 'awesome_print'
 require 'rack/test'
-require 'omniauth-casport'
+require 'omniauth-dice'
 
 RSpec.configure do |config|
   config.run_all_when_everything_filtered = true

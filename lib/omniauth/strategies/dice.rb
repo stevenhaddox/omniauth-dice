@@ -5,10 +5,11 @@ class RequiredCustomParamError < StandardError; end
 
 module OmniAuth
   module Strategies
+
     #
     # Provides omniauth authentication integration with a CAS server
     #
-    class Casport
+    class Dice
       include OmniAuth::Strategy
       attr_accessor :dn, :raw_dn
       args [:cas_server, :authentication_path]
@@ -32,6 +33,15 @@ module OmniAuth
       # option :client_key_pass, nil
       # option :fake_dn, nil
 
+      # Reformat DN to expected element order for CAS DN server
+      def format_dn(dn_str)
+        dn = dn_str.upcase # Upcase all DNs for consistency
+        dn = format_dn_delimeter(dn)
+        dn = format_dn_element_order(dn) unless dn_begins_properly?(dn)
+
+        dn.chomp(',')
+      end
+
       protected
 
       def setup_phase(*args)
@@ -41,48 +51,77 @@ module OmniAuth
 
       def request_phase
         raw_dn = get_dn_from_header(request.env)
-        log :debug, "#{raw_dn}"
-        raw_dn ||= get_certificate_from_env
+        raw_dn ||= get_dn_from_env_certificate
         return fail!('You need a valid DN to authenticate.') if !raw_dn
-        ap options
-        ap request.session
+        session['omniauth.dice'] = { 'raw_dn' => raw_dn }
+        ap session['omniauth.dice']['raw_dn']
 
-        #['rack.session']['omniauth.origin']
+        redirect callback_url
       end
 
       def callback_phase
+ap '*'*80
+ap response
+        raw_dn = session['omniauth.dice']['raw_dn']
+        session.delete('omniauth.dice')
+        return fail!('Client DN could not be retrieved') unless raw_dn
+#ap session.delete 'omniauth.crowd'
+
 #        return fail!(:invalid_credentials) if !authentication_response
 #        return fail!(:invalid_credentials) if authentication_response.code.to_i >= 400
-        super
       end
 
       private
 
       # Reads the DN from headers
       def get_dn_from_header(headers)
-        headers["#{options.subject_dn_header}"]
+        raw_dn = headers["#{options.subject_dn_header}"]
+        log :debug, "raw_dn from headers: #{raw_dn}"
+
+        raw_dn
       end
 
-      # Parses the Subject DN out of an SSL X509 Client Certificate
-      def get_dn_from_certificate(certificate)
-        raw_dn ||= certificate.subject
-      end
-
-      # Parse DN from certificate
-      def get_certificate_from_env
+      # Gets the DN from X509 certificate
+      def get_dn_from_env_certificate
         cert_str = request.env["#{options.client_cert_header}"]
         if cert_str
           client_cert = cert_str.to_cert
-          log :debug, "#{client_cert}"
-          raw_dn ||= get_dn_from_certificate(client_cert)
-          log :debug, "#{raw_dn}"
+          log :debug, "certificate string:\r\n#{client_cert}"
+          raw_dn ||= parse_dn_from_certificate(client_cert)
+          log :debug, "raw_dn from cert: #{raw_dn}"
         end
+
         raw_dn
+      end
+
+      # Parses the Subject DN out of an SSL X509 Client Certificate
+      def parse_dn_from_certificate(certificate)
+        raw_dn ||= certificate.subject.to_s
+      end
+
+      # Convert / to , for DN formatting
+      def format_dn_delimeter(dn_str)
+        dn_str.gsub('/',',')
+      end
+
+      # Ensure order of DN elements is proper for CAS server',' delimiter
+      def format_dn_element_order(dn_str)
+        dn = dn_str.split(',').reverse.join(',')
+        if dn_begins_properly?(dn)
+          dn
+        else
+          return fail!("DN invalid format for CAS server, DN was:\r\n#{dn}")
+        end
+      end
+
+      # Verify DN starts with 'CN='
+      def dn_begins_properly?(dn_str)
+        dn_str.nil? ? false : dn_str.start_with?('CN=')
       end
 
       # Create a Faraday instance with the cas_server & appropriate SSL config
       def connection
-        log :debug, '.connection'
+        log :debug, 'connection method'
         @connection ||= Faraday.new cas_server, ssl: ssl_hash
       end
 
@@ -101,7 +140,7 @@ module OmniAuth
           end
 
           if param_present.nil?
-            error_msg = "omniauth-casport error: #{param} is required"
+            error_msg = "omniauth-dice error: #{param} is required"
             fail RequiredCustomParamError, error_msg
           end
         end
