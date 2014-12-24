@@ -1,16 +1,16 @@
 # coding: utf-8
 lib = File.expand_path('../lib', __FILE__)
 $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
-require 'omniauth/casport/version'
+require 'omniauth/dice/version'
 
 Gem::Specification.new do |spec|
-  spec.name          = 'omniauth-casport'
-  spec.version       = Omniauth::Casport::VERSION
+  spec.name          = 'omniauth-dice'
+  spec.version       = Omniauth::Dice::VERSION
   spec.authors       = ['Steven Haddox']
   spec.email         = ['steven.haddox@gmail.com']
-  spec.summary       = %q{OmniAuth gem for internal casport server}
-  spec.description   = %q{Simple gem to enable rack powered Ruby apps to authenticate internally via a Central Authentication Server with ease}
-  spec.homepage      = "https://github.com/stevenhaddox/omniauth-casport"
+  spec.summary       = %q{DN Interoperable Conversion Expert Strategy}
+  spec.description   = %q{Simple gem to enable rack powered Ruby apps to authenticate via REST with an enterprise CAS authentication server via X509 client certificates.}
+  spec.homepage      = "https://github.com/stevenhaddox/omniauth-dice"
   spec.license       = "MIT"
 
   spec.files         = `git ls-files -z`.split("\x0")
