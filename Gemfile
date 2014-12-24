@@ -9,5 +9,5 @@ else
   source 'https://rubygems.org'
 end
 
-# Specify your gem's dependencies in omniauth-casport.gemspec
+# Specify your gem's dependencies in omniauth-dice.gemspec
 gemspec
