@@ -10,10 +10,8 @@ a user's X509 certificate DN string to an Enterprise(TM) CAS server via REST.
 ## Installation
 
 Add this line to your application's Gemfile:
-
 ```ruby
 gem 'omniauth-dice'
-```
 
 And then execute:
 
