@@ -5,7 +5,7 @@
 # **D**N **I**nteroperable **C**onversion **E**xpert
 
 omniauth-dice is an internal authentication strategy that authenticates via
-a user's X509 certificate DN string to an Enterprise(TM) CAS server via REST.
+a user's X509 certificate DN string to an Enterprise CAS server via REST.
 
 ## Installation
 

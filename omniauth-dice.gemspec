@@ -36,6 +36,7 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency 'yard'
 
   spec.add_dependency 'cert_munger', '~> 0.1'
+  spec.add_dependency 'dnc', '~> 0.1'
   spec.add_dependency 'logging', '~> 1.8'
   spec.add_dependency 'omniauth', '~> 1.0'
 

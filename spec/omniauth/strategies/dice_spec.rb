@@ -12,21 +12,6 @@ describe OmniAuth::Strategies::Dice do
   let!(:client_dn_from_cert) { '/DC=org/DC=ruby-lang/CN=Ruby certificate rbcert' }
   let(:client_dn_reversed)   { client_dn_from_cert.split('/').reverse.join('/') }
   let(:formatted_client_dn)  { 'CN=RUBY CERTIFICATE RBCERT,DC=RUBY-LANG,DC=ORG' }
-  let(:formatted_dns_array) { [
-    "CN=STUSRVICH TERRANCE EDWARD TESTUSR,OU=D135,OU=ISLE,OU=WEB,O=L.O.S.T. OTHERS,C=US",
-    "CN=DIAGO DESMOND D123456,OU=PEOPLE,OU=PENNY,OU=NOT,O=L.O.S.T. OTHERS,C=US",
-    "CN=BOB-THORNTON WILLIAM JAMES WJBOB,OU=BOAT,OU=B047,OU=ISLE,OU=NOT,O=L.O.S.T. OTHERS,C=US",
-    "CN=NODE RUBY G RGNODE9,OU=JIEDDO,OU=PEOPLE,OU=JCK,OU=JHN,O=L.O.S.T. OTHERS,C=US"
-  ] }
-  let(:apache_dns) { [
-    "CN=Stusrvich Terrance Edward Testusr,OU=D135,OU=Isle,OU=web,O=L.O.S.T. others,C=us",
-    "CN=DIAGO Desmond d123456,OU=People,OU=PENNY,OU=Not,O=L.O.S.T. OTHERS,C=US",
-    "CN=BOB-THORNTON William JAMES wjbob,OU=boat,OU=b047,OU=ISLE,OU=NOT,O=l.o.s.t. others,C=us",
-    "CN=NODE RUBY G RGNODE9,OU=JIEDDO,OU=PEOPLE,OU=JCK,OU=JHN,O=L.O.S.T. OTHERS,C=US"
-  ] }
-  let(:nginx_dns) { [
-
-  ] }
 
   context "invalid params" do
     subject { invalid_subject }
@@ -70,17 +55,11 @@ describe OmniAuth::Strategies::Dice do
     subject { valid_subject }
 
     it 'should ensure the client DN format is in the proper order' do
-      expect(subject.format_dn(formatted_client_dn)).to eq(formatted_client_dn)
-
       formatted_cert_dn = subject.format_dn(client_dn_from_cert)
       expect(formatted_cert_dn).to eq(formatted_client_dn)
 
       formatted_reverse_client_dn = subject.format_dn(client_dn_reversed)
       expect(formatted_reverse_client_dn).to eq(formatted_client_dn)
-
-      apache_dns.each_with_index do |dn_str, index|
-        expect(subject.format_dn(dn_str)).to eq(formatted_dns_array[index])
-      end
     end
   end
 
