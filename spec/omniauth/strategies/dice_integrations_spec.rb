@@ -1,11 +1,14 @@
 require 'spec_helper'
-class MockDice; end
+require'dnc'
 
+class MockDice; end
 describe OmniAuth::Strategies::Dice, type: :strategy do
   attr_accessor :app
-  let(:auth_hash)    { last_response.headers['env']['omniauth.auth'] }
-  let(:dice_hash) { last_response.headers['env']['omniauth.dice'] }
-  let!(:user_cert)   { File.read('spec/certs/ruby_user.crt') }
+  let(:auth_hash)  { last_response.headers['env']['omniauth.auth'] }
+  let(:dice_hash)  { last_response.headers['env']['omniauth.dice'] }
+  let!(:user_cert) { File.read('spec/certs/ruby_user.crt') }
+  let!(:raw_dn)    { '/DC=org/DC=ruby-lang/CN=Ruby certificate rbcert' }
+  let!(:user_dn)   { DN.new(dn_string: '/DC=org/DC=ruby-lang/CN=Ruby certificate rbcert') }
 
   # customize rack app for testing, if block is given, reverts to default
   # rack app after testing is done
@@ -13,7 +16,7 @@ describe OmniAuth::Strategies::Dice, type: :strategy do
     dice_options = {:model => MockDice}.merge(dice_options)
     old_app = self.app
     self.app = Rack::Builder.app do
-      use Rack::Session::Cookie
+      use Rack::Session::Cookie, :secret => '1337geeks'
       use OmniAuth::Strategies::Dice, dice_options
       run lambda{|env| [404, {'env' => env}, ["HELLO!"]]}
     end
@@ -37,27 +40,38 @@ describe OmniAuth::Strategies::Dice, type: :strategy do
       expect { get '/auth/dice' }.to raise_error(OmniAuth::Error, 'You need a valid DN to authenticate.')
     end
 
+    # This test is imperfect, but for now it works as so:
+    # get '/auth/dice' with no headers fails
+    # Add header 'Ssl-Client-Cert' and we're redirected to callback == success
     it "should set the client's DN (from certificate)" do
       header 'Ssl-Client-Cert', user_cert
       get '/auth/dice'
       expect(last_request.env['HTTP_SSL_CLIENT_CERT']).to eq(user_cert)
-      #expect(last_response.original_headers['omniauth.dice']['raw_dn']).to eq(user_dn)
+      expect(last_request.url).to eq('http://example.org/auth/dice')
+      expect(last_response.location).to eq('http://example.org/auth/dice/callback')
     end
 
+    # This test is imperfect, but for now it works as so:
+    # get '/auth/dice' with no headers fails
+    # Add header 'Ssl-Client-S-Dn' and we're redirected to callback == success
     it "should set the client's DN (from header)" do
-      user_dn = '/DC=org/DC=ruby-lang/CN=Ruby certificate rbcert'
-      header 'Ssl-Client-S-Dn', user_dn
+      header 'Ssl-Client-S-Dn', raw_dn
       get '/auth/dice'
-      expect(last_request.env['HTTP_SSL_CLIENT_S_DN']).to eq(user_dn)
-      #expect(last_response.original_headers['omniauth.dice']['raw_dn']).to eq(user_dn)
-    end
-
-    it 'should request data from the cas_server' do
-      pending 'todo'
+      expect(last_request.env['HTTP_SSL_CLIENT_S_DN']).to eq(raw_dn)
+      expect(last_request.url).to eq('http://example.org/auth/dice')
+      expect(last_response.location).to eq('http://example.org/auth/dice/callback')
     end
   end
 
   describe '#callback_phase' do
+    it 'should request data from the cas_server' do
+      header 'Ssl-Client-Cert', user_cert
+      get '/auth/dice'
+      follow_redirect!
+      expect(last_response.location).to eq('/')
+      ap last_response
+    end
+
     context 'success' do
       it 'should return an omniauth auth_hash' do
         pending 'todo'
