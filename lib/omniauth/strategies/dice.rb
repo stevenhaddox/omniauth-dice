@@ -15,8 +15,9 @@ module OmniAuth
       attr_accessor :dn, :raw_dn
       args [:cas_server, :authentication_path]
 
-      def initialize(*args)
+      def initialize(*args, &block)
         validate_required_params(args)
+
         super
       end
 
@@ -48,25 +49,25 @@ module OmniAuth
       end
 
       def request_phase
-        raw_dn = get_dn_from_header(request.env)
-        raw_dn ||= get_dn_from_env_certificate
-        return fail!('You need a valid DN to authenticate.') if !raw_dn
-        session['omniauth.dice'] = { 'raw_dn' => raw_dn }
-        ap session['omniauth.dice']['raw_dn']
+        raw_dn   = get_dn_from_env_certificate
+        raw_dn ||= get_dn_from_header(request.env)
+        return fail!('You need a valid DN to authenticate.') unless raw_dn
+        user_dn = format_dn(raw_dn)
+        log :debug, "Formatted user_dn: #{user_dn}"
+        return fail!('You need a valid DN to authenticate.') unless user_dn
+        set_user_dn(user_dn)
 
         redirect callback_url
       end
 
       def callback_phase
-ap '*'*80
-ap response
-        raw_dn = session['omniauth.dice']['raw_dn']
-        session.delete('omniauth.dice')
-        return fail!('Client DN could not be retrieved') unless raw_dn
-#ap session.delete 'omniauth.crowd'
-
+        user_dn = env['omniauth.params']['user_dn']
+        return fail!('Client DN could not be retrieved') unless user_dn
+        cas_response = nil # GET / POST here!
 #        return fail!(:invalid_credentials) if !authentication_response
 #        return fail!(:invalid_credentials) if authentication_response.code.to_i >= 400
+
+        redirect request.env['omniauth.origin'] || '/'
       end
 
       private
@@ -135,6 +136,14 @@ ap response
           end
         else
           false
+        end
+      end
+
+      def set_user_dn(user_dn)
+        if session['omniauth.params']
+          session['omniauth.params']['user_dn'] = user_dn
+        else
+          session['omniauth.params'] = { 'user_dn' => user_dn }
         end
       end
 
