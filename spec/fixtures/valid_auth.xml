@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<userinfo>
+  <citizenshipStatus>US</citizenshipStatus>
+  <country>USA</country>
+  <dn>cn=twilight.sparkle,ou=c001,ou=mlp,ou=pny,o=princesses of celestia,c=us</dn>
+  <email>twilight@example.org</email>
+  <firstName>twilight</firstName>
+  <lastName>sparkle</lastName>
+  <fullName>twilight sparkle</fullName>
+  <grantBy>princess celestia</grantBy>
+  <organizations>princesses</organizations>
+  <organizations>librarians</organizations>
+  <organizations>unicorns</organizations>
+  <uid>twilight.sparkle</uid>
+  <dutyorg>ponyville library</dutyorg>
+  <visas>EQUASTRIA</visas>
+  <visas>CLOUDSDALE</visas>
+  <affiliations>WONDERBOLTS</affiliations>
+  <telephoneNumber>555-555-5555</telephoneNumber>
+</userinfo>
