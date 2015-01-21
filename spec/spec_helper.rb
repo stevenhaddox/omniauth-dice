@@ -8,6 +8,8 @@ SimpleCov.start do
 end
 
 require 'capybara/rspec'
+require 'rack_session_access'
+require 'rack_session_access/capybara'
 require 'webmock/rspec'
 require 'awesome_print'
 require 'rack/test'

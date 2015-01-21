@@ -49,20 +49,28 @@ module OmniAuth
       end
 
       def request_phase
-        raw_dn   = get_dn_from_env_certificate
-        raw_dn ||= get_dn_from_header(request.env)
-        return fail!('You need a valid DN to authenticate.') unless raw_dn
-        user_dn = format_dn(raw_dn)
-        log :debug, "Formatted user_dn: #{user_dn}"
+        subject_dn = get_dn_by_type('subject')
+        return fail!('You need a valid DN to authenticate.') unless subject_dn
+        user_dn = format_dn(subject_dn)
+        log :debug, "Formatted user_dn:   #{user_dn}"
         return fail!('You need a valid DN to authenticate.') unless user_dn
-        set_user_dn(user_dn)
+        set_session_dn(user_dn, 'subject')
+        issuer_dn = get_dn_by_type('issuer')
+        issuer_dn = format_dn(issuer_dn) if issuer_dn
+        log :debug, "Formatted issuer_dn: #{issuer_dn}"
+        set_session_dn(issuer_dn, 'issuer') if issuer_dn
 
         redirect callback_url
       end
 
       def callback_phase
-        user_dn = env['omniauth.params']['user_dn']
-        return fail!('Client DN could not be retrieved') unless user_dn
+        user_dn  = env['omniauth.params']['user_dn']
+        response = connection.post options.authentication_path, { DN: user_dn }
+
+        query_path = "#{options.cas_server}#{options.authentication_path}"
+        ap query_url
+        ap user_dn
+
         cas_response = nil # GET / POST here!
 #        return fail!(:invalid_credentials) if !authentication_response
 #        return fail!(:invalid_credentials) if authentication_response.code.to_i >= 400
@@ -72,30 +80,41 @@ module OmniAuth
 
       private
 
+      # Coordinate getting DN from cert, fallback to header
+      def get_dn_by_type(type='subject')
+        raw_dn   = get_dn_from_certificate(type=type)
+        raw_dn ||= get_dn_from_header(type=type)
+      end
+
       # Reads the DN from headers
-      def get_dn_from_header(headers)
-        raw_dn = headers["#{options.subject_dn_header}"]
-        log :debug, "raw_dn from headers: #{raw_dn}"
+      def get_dn_from_header(type)
+        headers = request.env
+        if type == 'issuer'
+          raw_dn = headers["#{options.issuer_dn_header}"]
+        else
+          raw_dn = headers["#{options.subject_dn_header}"]
+        end
+        log :debug, "raw_dn (#{type}) from headers: #{raw_dn}"
 
         raw_dn
       end
 
       # Gets the DN from X509 certificate
-      def get_dn_from_env_certificate
+      def get_dn_from_certificate(type)
         cert_str = request.env["#{options.client_cert_header}"]
         if cert_str
           client_cert = cert_str.to_cert
-          log :debug, "certificate string:\r\n#{client_cert}"
-          raw_dn ||= parse_dn_from_certificate(client_cert)
+          log :debug, "Client certificate:\r\n#{client_cert}"
+          raw_dn ||= parse_dn_from_certificate(client_cert, type)
           log :debug, "raw_dn from cert: #{raw_dn}"
         end
 
         raw_dn
       end
 
-      # Parses the Subject DN out of an SSL X509 Client Certificate
-      def parse_dn_from_certificate(certificate)
-        raw_dn ||= certificate.subject.to_s
+      # Parse the DN out of an SSL X509 Client Certificate
+      def parse_dn_from_certificate(certificate, type='subject')
+        certificate.send(type.to_sym).to_s
       end
 
       # Create a Faraday instance with the cas_server & appropriate SSL config
@@ -139,11 +158,20 @@ module OmniAuth
         end
       end
 
-      def set_user_dn(user_dn)
-        if session['omniauth.params']
-          session['omniauth.params']['user_dn'] = user_dn
+      def set_session_dn(dn_string, type='subject')
+        dn_type = case type
+        when 'subject'
+          'user_dn'
+        when 'issuer'
+          'issuer_dn'
         else
-          session['omniauth.params'] = { 'user_dn' => user_dn }
+          fail "Invalid DN string type"
+        end
+
+        if session['omniauth.params']
+          session['omniauth.params'][dn_type] = dn_string
+        else
+          session['omniauth.params'] = { dn_type => dn_string }
         end
       end
 
