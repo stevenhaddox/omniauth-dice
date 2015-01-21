@@ -24,6 +24,7 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency 'bundler'
   spec.add_development_dependency 'capybara'
   spec.add_development_dependency 'coveralls'
+  spec.add_development_dependency 'rack_session_access'
   spec.add_development_dependency 'redcarpet'
   spec.add_development_dependency 'rspec'
   spec.add_development_dependency 'rack'
