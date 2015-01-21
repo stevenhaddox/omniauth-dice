@@ -1,0 +1,27 @@
+{
+  "citizenshipStatus": "US",
+  "country": "USA",
+  "dn": "cn=twilight.sparkle,ou=c001,ou=mlp,ou=pny,o=princesses of celestia,c=us",
+  "email": "twilight@example.org",
+  "firstName": "twilight",
+  "lastName": "sparkle",
+  "fullName": "twilight sparkle",
+  "grantBy": [
+    "princess celestia"
+  ],
+  "organizations": [
+    "princesses",
+    "librarians",
+    "unicorns"
+  ],
+  "uid": "twilight.sparkle",
+  "dutyorg": "ponyville library",
+  "visas": [
+    "EQUESTRIA",
+    "CLOUDSDALE"
+  ],
+  "affiliations": [
+    "WONDERBOLTS"
+  ],
+  "telephoneNumber": "555-555-5555"
+}

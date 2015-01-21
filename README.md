@@ -23,7 +23,37 @@ Or install it yourself with:
 
 ## Usage
 
-TODO: Write usage instructions here
+Setup your OmniAuth::Dice builder like so:
+
+```
+{
+  cas_server:          'https://example.org:3000',
+  authentication_path: '/dn',
+  format_header:       'application/xml', # default is 'application/json'
+  format:              'xml', # default is 'json'
+  dnc_options: { transformation: 'downcase' }, # see `dnc` gem for all options
+  ssl_config:  {
+    ca_file:     'spec/certs/CA.pem',
+    client_cert: 'spec/certs/client.pem',
+    client_key:  'spec/certs/key.np.pem'
+  } # See OmniAuth::Strategies::Dice.ssl_hash for all options
+}
+```
+
+### SSL Client Certificate Notes
+
+`Faraday` (the HTTP library used by OmniAuth) can accept certificate paths:
+
+```
+  client_cert: 'spec/certs/client.pem',
+  client_key:  'spec/certs/key.np.pem'
+```
+
+Or it also works with actual certificates (such as to pass a passphrase in):
+```
+  client_cert: File.read('spec/certs/client.pem').to_cert,
+  client_key:  OpenSSL::PKey::RSA.new(File.read('spec/certs/key.pem'), 'PASSW0RD')
+```
 
 ## Contributing
 
