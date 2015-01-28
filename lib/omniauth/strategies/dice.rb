@@ -13,6 +13,23 @@ module OmniAuth
     #
     # Provides omniauth authentication integration with a CAS server
     #
+    # @option cas_server [String] Required base URL for CAS server
+    # @option authentication_path [String] URL path for endpoint, e.g. '/users'
+    # @option return_field [String] Optional path to append after DN string
+    # @option ssl_config [Hash] Configuration hash for `Faraday` SSL options
+    # @option format_header [String] 'application/json', 'application/xml', etc
+    #   Defaults to 'application/json'
+    # @option format [String] 'json', 'xml', etc.
+    #   Defaults to 'json'
+    # @option client_cert_header [String] ENV string to access user's X509 cert
+    #   Defaults to 'HTTP_SSL_CLIENT_CERT'
+    # @option subject_dn_header [String] ENV string to access user's subject_dn
+    #   Defaults to 'HTTP_SSLC_LIENT_S_DN'
+    # @option issuer_dn_header [String] ENV string to access user's issuer_dn
+    #   Defaults to 'HTTP_SSL_CLIENT_I_DN'
+    # @option name_format [Symbol] Format for auth_hash['info']['name']
+    #   Defaults to attempting DN common name -> full name -> first & last name
+    #   Valid options are: :cn, :full_name, :first_last_name to override
     class Dice
       include OmniAuth::Strategy
       attr_accessor :dn, :raw_dn, :data
@@ -34,13 +51,11 @@ module OmniAuth
       option :client_cert_header, 'HTTP_SSL_CLIENT_CERT'
       option :subject_dn_header,  'HTTP_SSL_CLIENT_S_DN'
       option :issuer_dn_header,   'HTTP_SSL_CLIENT_I_DN'
+      option :name_format
 
       # Reformat DN to expected element order for CAS DN server (via dnc gem).
       def format_dn(dn_str)
-        custom_order = %w(cn l st ou o c street dc uid)
-        default_opts = { dn_string: dn_str, string_order: custom_order }
-        dnc_config = unhashie(options.dnc_options)
-        DN.new( default_opts.merge(dnc_config) ).to_s
+        get_dn(dn_str).to_s
       end
 
       protected
@@ -132,7 +147,7 @@ module OmniAuth
           when :json
             @data = JSON.parse(@data, symbolize_names: true)
           when :xml
-            @data = MultiXml.parse(@data)
+            @data = MultiXml.parse(@data)['userinfo']
           end
           log :debug, "Formatted response.body data: #{@data}"
         end
@@ -145,13 +160,9 @@ module OmniAuth
       def create_auth_info
         log :debug, '.create_auth_info'
         info = {}
-        ap info
         info = auth_info_defaults(info)
-        ap info
         info = auth_info_dynamic(info)
-        ap info
         info = auth_info_custom(info)
-        ap info
 
         session['omniauth.auth']['info'] = info
       end
@@ -182,7 +193,26 @@ module OmniAuth
 
       # Custom auth_info fields
       def auth_info_custom(info)
+        info['common_name'] = get_dn(info['dn']).cn
+        set_name(info)
+
         info
+      end
+
+      # Allow for a custom field for the name, or use a best guess default
+      def set_name(info)
+        # Do NOT override the value if it's returned from the CAS server
+        return info['name'] if info['name']
+        info['name'] = case options.name_format
+        when :cn
+          info['common_name']
+        when :full_name
+          info['full_name']
+        when :first_last_name
+          "#{info['first_name']} #{info['last_name']}"
+        end
+        info['name'] ||= info['common_name'] || info['full_name'] ||
+                         "#{info['first_name']} #{info['last_name']}"
       end
 
       # Coordinate getting DN from cert, fallback to header
@@ -325,6 +355,17 @@ module OmniAuth
 
         custom_config = unhashie(options.ssl_config)
         ssl_defaults.merge(custom_config)
+      end
+
+      # Retrieve DNC default & custom configs
+      #
+      # @param dn_str [String] The string of text you wish to parse into a DN
+      # @return [DN]
+      def get_dn(dn_str)
+        custom_order = %w(cn l st ou o c street dc uid)
+        default_opts = { dn_string: dn_str, string_order: custom_order }
+        dnc_config = unhashie(options.dnc_options)
+        DN.new( default_opts.merge(dnc_config) )
       end
     end
   end

@@ -20,12 +20,13 @@ And then execute:
 Or install it yourself with:
 
     $ gem install omniauth-dice
+```
 
 ## Usage
 
 Setup your OmniAuth::Dice builder like so:
 
-```
+```ruby
 {
   cas_server:          'https://example.org:3000',
   authentication_path: '/dn',
@@ -38,6 +39,28 @@ Setup your OmniAuth::Dice builder like so:
     client_key:  'spec/certs/key.np.pem'
   } # See OmniAuth::Strategies::Dice.ssl_hash for all options
 }
+```
+
+Full configuration options are as follows:
+
+```
+cas_server [String] Required base URL for CAS server
+authentication_path [String] URL path for endpoint, e.g. '/users'
+return_field [String] Optional path to append after DN string
+ssl_config [Hash] Configuration hash for `Faraday` SSL options
+format_header [String] 'application/json', 'application/xml', etc
+  Defaults to 'application/json'
+format [String] 'json', 'xml', etc.
+  Defaults to 'json'
+client_cert_header [String] ENV string to access user's X509 cert
+  Defaults to 'HTTP_SSL_CLIENT_CERT'
+subject_dn_header [String] ENV string to access user's subject_dn
+  Defaults to 'HTTP_SSLC_LIENT_S_DN'
+issuer_dn_header [String] ENV string to access user's issuer_dn
+  Defaults to 'HTTP_SSL_CLIENT_I_DN'
+name_format [Symbol] Format for auth_hash['info']['name']
+  Defaults to attempting DN common name -> full name -> first & last name
+  Valid options are: :cn, :full_name, :first_last_name to override
 ```
 
 ### SSL Client Certificate Notes

@@ -23,9 +23,11 @@ describe OmniAuth::Strategies::Dice, type: :strategy do
       "info" => {
         "dn" => "cn=twilight.sparkle,ou=c001,ou=mlp,ou=pny,o=princesses of celestia,c=us",
         "email" => "twilight@example.org",
-        "first_name" => "twilight",
-        "last_name" => "sparkle",
-        "full_name" => "twilight sparkle",
+        "first_name"  => "twilight",
+        "last_name"   => "sparkle",
+        "full_name"   => "twilight sparkle",
+        "common_name" => "twilight.sparkle",
+        "name"        => "twilight.sparkle",
         "citizenship_status" => "US",
         "country" => "USA",
         "grant_by" => [
