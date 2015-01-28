@@ -145,30 +145,44 @@ module OmniAuth
       def create_auth_info
         log :debug, '.create_auth_info'
         info = {}
-
-        defaults = [:dn, :email, :firstName, :lastName, :fullName,
-                    :citizenshipStatus, :country, :grantBy, :organizations,
-                    :uid, :dutyorg, :visas, :affiliations]
-
-        info['dn']                 = @data[:dn]
-        info['email']              = @data[:email]
-        info['first_name']         = @data[:firstName]
-        info['last_name']          = @data[:lastName]
-        info['full_name']          = @data[:fullName]
-        info['citizenship_status'] = @data[:citizenshipStatus]
-        info['country']            = @data[:country]
-        info['grant_by']           = @data[:grantBy]
-        info['organizations']      = @data[:organizations]
-        info['uid']                = @data[:uid]
-        info['dutyorg']            = @data[:dutyorg]
-        info['visas']              = @data[:visas]
-        info['affiliations']       = @data[:affiliations]
-
-        @data.each do |key, value|
-          info[key.to_s.to_snake] = value unless defaults.include?(key)
-        end
+        ap info
+        info = auth_info_defaults(info)
+        ap info
+        info = auth_info_dynamic(info)
+        ap info
+        info = auth_info_custom(info)
+        ap info
 
         session['omniauth.auth']['info'] = info
+      end
+
+      def info_defaults
+        [:dn, :email, :firstName, :lastName, :fullName, :citizenshipStatus,
+         :country, :grantBy, :organizations, :uid, :dutyorg, :visas,
+         :affiliations]
+      end
+
+      # Defualt auth_info fields
+      def auth_info_defaults(info)
+        info_defaults.each do |key_name|
+          info[key_name.to_s.to_snake] = @data[key_name]
+        end
+
+        info
+      end
+
+      # Dynamic auth_info fields
+      def auth_info_dynamic(info)
+        @data.each do |key, value|
+          info[key.to_s.to_snake] = value unless info_defaults.include?(key)
+        end
+
+        info
+      end
+
+      # Custom auth_info fields
+      def auth_info_custom(info)
+        info
       end
 
       # Coordinate getting DN from cert, fallback to header
