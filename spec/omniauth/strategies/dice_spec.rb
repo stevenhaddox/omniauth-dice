@@ -3,30 +3,16 @@ require 'spec_helper'
 describe OmniAuth::Strategies::Dice do
   let!(:app)            { TestRackApp.new }
   let(:invalid_subject) { OmniAuth::Strategies::Dice.new(app) }
+  let(:dice_default_opts) { {
+    cas_server: 'https://dice.dev',
+    authentication_path: '/users'
+  } }
   let(:valid_subject)   {
-    OmniAuth::Strategies::Dice.new(app,
-      cas_server: 'https://dice.dev',
-      authentication_path: '/users'
-    )
+    OmniAuth::Strategies::Dice.new(app, dice_default_opts )
   }
   let!(:client_dn_from_cert) { '/DC=org/DC=ruby-lang/CN=Ruby certificate rbcert' }
   let(:client_dn_reversed)   { client_dn_from_cert.split('/').reverse.join('/') }
   let(:formatted_client_dn)  { 'CN=RUBY CERTIFICATE RBCERT,DC=RUBY-LANG,DC=ORG' }
-  let(:formatted_dns_array) { [
-    "CN=STUSRVICH TERRANCE EDWARD TESTUSR,OU=D135,OU=ISLE,OU=WEB,O=L.O.S.T. OTHERS,C=US",
-    "CN=DIAGO DESMOND D123456,OU=PEOPLE,OU=PENNY,OU=NOT,O=L.O.S.T. OTHERS,C=US",
-    "CN=BOB-THORNTON WILLIAM JAMES WJBOB,OU=BOAT,OU=B047,OU=ISLE,OU=NOT,O=L.O.S.T. OTHERS,C=US",
-    "CN=NODE RUBY G RGNODE9,OU=JIEDDO,OU=PEOPLE,OU=JCK,OU=JHN,O=L.O.S.T. OTHERS,C=US"
-  ] }
-  let(:apache_dns) { [
-    "CN=Stusrvich Terrance Edward Testusr,OU=D135,OU=Isle,OU=web,O=L.O.S.T. others,C=us",
-    "CN=DIAGO Desmond d123456,OU=People,OU=PENNY,OU=Not,O=L.O.S.T. OTHERS,C=US",
-    "CN=BOB-THORNTON William JAMES wjbob,OU=boat,OU=b047,OU=ISLE,OU=NOT,O=l.o.s.t. others,C=us",
-    "CN=NODE RUBY G RGNODE9,OU=JIEDDO,OU=PEOPLE,OU=JCK,OU=JHN,O=L.O.S.T. OTHERS,C=US"
-  ] }
-  let(:nginx_dns) { [
-
-  ] }
 
   context "invalid params" do
     subject { invalid_subject }
@@ -48,7 +34,6 @@ describe OmniAuth::Strategies::Dice do
     end
 
     it "should return the default options" do
-      expect(subject.options.uid_field).to     eq(:dn)
       expect(subject.options.format).to        eq('json')
       expect(subject.options.format_header).to eq('application/json')
     end
@@ -70,52 +55,59 @@ describe OmniAuth::Strategies::Dice do
     subject { valid_subject }
 
     it 'should ensure the client DN format is in the proper order' do
-      expect(subject.format_dn(formatted_client_dn)).to eq(formatted_client_dn)
-
       formatted_cert_dn = subject.format_dn(client_dn_from_cert)
       expect(formatted_cert_dn).to eq(formatted_client_dn)
 
       formatted_reverse_client_dn = subject.format_dn(client_dn_reversed)
       expect(formatted_reverse_client_dn).to eq(formatted_client_dn)
-
-      apache_dns.each_with_index do |dn_str, index|
-        expect(subject.format_dn(dn_str)).to eq(formatted_dns_array[index])
-      end
     end
   end
 
-  context "Old specs" do
-    context "success" do
-      before :each do
-        pending
-      end
-
-      it "should return dn from raw_info if available" do
-        subject.stub!(:raw_info).and_return({'dn' => 'givenName = Steven Haddox, ou = apache, ou = org'})
-        subject.dn.should eq('givenName = Steven Haddox, ou = apache, ou = org')
-      end
-
-      it "should return email from raw_info if available" do
-        subject.stub!(:raw_info).and_return({'email' => 'stevenhaddox@shortmail.com'})
-        subject.email.should eq('stevenhaddox@shortmail.com')
-      end
-
-      it "should return nil if there is no raw_info and email access is not allowed" do
-        subject.stub!(:raw_info).and_return({})
-        subject.email.should be_nil
-      end
-
-      it "should return the first email if there is no raw_info and email access is allowed" do
-        subject.stub!(:raw_info).and_return({})
-        subject.options['scope'] = 'user'
-        subject.stub!(:emails).and_return([ 'you@example.com' ])
-        subject.email.should eq('you@example.com')
-      end
+  context ".set_name" do
+    before do
+      @info_hash = {
+        'common_name' => 'twilight.sparkle',
+        'full_name'   => 'Princess Twilight Sparkle',
+        'first_name'  => 'twilight',
+        'last_name'   => 'sparkle'
+      }
     end
 
-    context "failure" do
-      pending
+    it 'should not set a name field if it is already defined' do
+      dice = OmniAuth::Strategies::Dice.new( app, dice_default_opts )
+      name = dice.send( :set_name, @info_hash.merge({'name' => 'nightmare moon'}) )
+      expect(name).to eq('nightmare moon')
+    end
+
+    it 'should default to :cn then :first_name and finally :first_last_name' do
+      dice = OmniAuth::Strategies::Dice.new( app, dice_default_opts )
+      # With only full_name available
+      name = dice.send(:set_name, { 'full_name' => @info_hash['full_name'] })
+      expect(name).to eq(@info_hash['full_name'])
+      # With only first_name and last_name available
+      name = dice.send(:set_name, { 'first_name' => @info_hash['first_name'], 'last_name' => @info_hash['last_name'] })
+      expect(name).to eq("#{@info_hash['first_name']} #{@info_hash['last_name']}")
+      # With only the dn available
+      name = dice.send(:set_name, { 'common_name' => @info_hash['common_name'] })
+      expect(name).to eq(@info_hash['common_name'])
+    end
+
+    it 'should support custom name formatting set as :cn' do
+      dice = OmniAuth::Strategies::Dice.new( app, dice_default_opts.merge({name_format: :cn}) )
+      name = dice.send(:set_name, @info_hash)
+      expect(name).to eq(@info_hash['common_name'])
+    end
+
+    it 'should support custom name formatting set as :full_name' do
+      dice = OmniAuth::Strategies::Dice.new( app, dice_default_opts.merge({name_format: :full_name}) )
+      name = dice.send(:set_name, @info_hash)
+      expect(name).to eq(@info_hash['full_name'])
+    end
+
+    it 'should support custom name formatting set as :first_last_name' do
+      dice = OmniAuth::Strategies::Dice.new( app, dice_default_opts.merge({name_format: :first_last_name}) )
+      name = dice.send(:set_name, @info_hash)
+      expect(name).to eq("#{@info_hash['first_name']} #{@info_hash['last_name']}")
     end
   end
-
 end
