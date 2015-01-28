@@ -24,6 +24,7 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency 'bundler'
   spec.add_development_dependency 'capybara'
   spec.add_development_dependency 'coveralls'
+  spec.add_development_dependency 'rack_session_access'
   spec.add_development_dependency 'redcarpet'
   spec.add_development_dependency 'rspec'
   spec.add_development_dependency 'rack'
@@ -36,7 +37,12 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency 'yard'
 
   spec.add_dependency 'cert_munger', '~> 0.1'
+  spec.add_dependency 'dnc', '~> 0.1'
+  spec.add_dependency 'excon'
+  spec.add_dependency 'faraday'
+  spec.add_dependency 'faraday_middleware'
   spec.add_dependency 'logging', '~> 1.8'
+  spec.add_dependency 'multi_xml'
   spec.add_dependency 'omniauth', '~> 1.0'
 
   spec.cert_chain  = ['certs/stevenhaddox.pem']

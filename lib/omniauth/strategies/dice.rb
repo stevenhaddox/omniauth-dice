@@ -1,5 +1,9 @@
+require 'faraday'
+require 'faraday_middleware'
+require 'open-uri'
 require 'omniauth'
 require 'cert_munger'
+require 'dnc'
 
 class RequiredCustomParamError < StandardError; end
 
@@ -9,40 +13,62 @@ module OmniAuth
     #
     # Provides omniauth authentication integration with a CAS server
     #
+    # @option cas_server [String] Required base URL for CAS server
+    # @option authentication_path [String] URL path for endpoint, e.g. '/users'
+    # @option return_field [String] Optional path to append after DN string
+    # @option ssl_config [Hash] Configuration hash for `Faraday` SSL options
+    # @option format_header [String] 'application/json', 'application/xml', etc
+    #   Defaults to 'application/json'
+    # @option format [String] 'json', 'xml', etc.
+    #   Defaults to 'json'
+    # @option client_cert_header [String] ENV string to access user's X509 cert
+    #   Defaults to 'HTTP_SSL_CLIENT_CERT'
+    # @option subject_dn_header [String] ENV string to access user's subject_dn
+    #   Defaults to 'HTTP_SSLC_LIENT_S_DN'
+    # @option issuer_dn_header [String] ENV string to access user's issuer_dn
+    #   Defaults to 'HTTP_SSL_CLIENT_I_DN'
+    # @option name_format [Symbol] Format for auth_hash['info']['name']
+    #   Defaults to attempting DN common name -> full name -> first & last name
+    #   Valid options are: :cn, :full_name, :first_last_name to override
     class Dice
       include OmniAuth::Strategy
-      attr_accessor :dn, :raw_dn
+      attr_accessor :dn, :raw_dn, :data
       args [:cas_server, :authentication_path]
 
-      def initialize(*args)
+      def initialize(*args, &block)
         validate_required_params(args)
+
         super
       end
 
-      # option :fields, [:dn]
-      option :uid_field, :dn
-
+      option :dnc_options, {}
       option :cas_server, nil
       option :authentication_path, nil
+      option :return_field, 'info'
       option :ssl_config, {}
       option :format_header, 'application/json'
       option :format, 'json'
       option :client_cert_header, 'HTTP_SSL_CLIENT_CERT'
       option :subject_dn_header,  'HTTP_SSL_CLIENT_S_DN'
       option :issuer_dn_header,   'HTTP_SSL_CLIENT_I_DN'
-      # option :client_key_pass, nil
-      # option :fake_dn, nil
+      option :name_format
 
-      # Reformat DN to expected element order for CAS DN server
+      # Reformat DN to expected element order for CAS DN server (via dnc gem).
       def format_dn(dn_str)
-        dn = dn_str.upcase # Upcase all DNs for consistency
-        dn = format_dn_delimeter(dn)
-        dn = format_dn_element_order(dn) unless dn_begins_properly?(dn)
-
-        dn.chomp(',')
+        get_dn(dn_str).to_s
       end
 
       protected
+
+      # Change Hashie indifferent access keys back to symbols
+      def unhashie(hash)
+        tmp_hash = {}
+        hash.each do |key, value|
+          tmp_hash[key.to_sym] = value
+        end
+
+        tmp_hash
+      end
 
       def setup_phase(*args)
         log :debug, 'setup_phase'
@@ -50,79 +76,211 @@ module OmniAuth
       end
 
       def request_phase
-        raw_dn = get_dn_from_header(request.env)
-        raw_dn ||= get_dn_from_env_certificate
-        return fail!('You need a valid DN to authenticate.') if !raw_dn
-        session['omniauth.dice'] = { 'raw_dn' => raw_dn }
-        ap session['omniauth.dice']['raw_dn']
+        subject_dn = get_dn_by_type('subject')
+        return fail!('You need a valid DN to authenticate.') unless subject_dn
+        user_dn = format_dn(subject_dn)
+        log :debug, "Formatted user_dn:   #{user_dn}"
+        return fail!('You need a valid DN to authenticate.') unless user_dn
+        set_session_dn(user_dn, 'subject')
+        issuer_dn = get_dn_by_type('issuer')
+        issuer_dn = format_dn(issuer_dn) if issuer_dn
+        log :debug, "Formatted issuer_dn: #{issuer_dn}"
+        set_session_dn(issuer_dn, 'issuer') if issuer_dn
 
         redirect callback_url
       end
 
       def callback_phase
-ap '*'*80
-ap response
-        raw_dn = session['omniauth.dice']['raw_dn']
-        session.delete('omniauth.dice')
-        return fail!('Client DN could not be retrieved') unless raw_dn
-#ap session.delete 'omniauth.crowd'
+        issuer_dn = env['omniauth.params']['issuer_dn']
+        if issuer_dn
+          response = connection.get query_url, { issuerDN: issuer_dn }
+        else
+          response = connection.get query_url
+        end
+        if !response || response.status.to_i >= 400
+          log :error, response.inspect
+          return fail!(:invalid_credentials)
+        end
+        @data = response.body
+        create_auth_hash
 
-#        return fail!(:invalid_credentials) if !authentication_response
-#        return fail!(:invalid_credentials) if authentication_response.code.to_i >= 400
+        redirect request.env['omniauth.origin'] || '/'
       end
 
       private
 
+      # Coordinate building out the auth_hash
+      def create_auth_hash
+        log :debug, '.create_auth_hash'
+        init_auth_hash
+        set_auth_uid
+        parse_response_data
+        create_auth_info
+      end
+
+      # Initialize the auth_hash expected fields
+      def init_auth_hash
+        log :debug, '.init_auth_hash'
+        session['omniauth.auth'] ||= {
+          'provider' => 'Dice',
+          'uid'      => nil,
+          'info'     => nil,
+          'extra'    => {
+            'raw_info' => nil
+          }
+        }
+      end
+
+      # Set the user's uid field for the auth_hash
+      def set_auth_uid
+        log :debug, '.set_auth_uid'
+        session['omniauth.auth']['uid'] = env['omniauth.params']['user_dn']
+      end
+
+      # Detect data format, parse with appropriate library
+      def parse_response_data
+        log :debug, '.parse_response_data'
+        session['omniauth.auth']['extra']['raw_info'] = @data
+        log :debug, "cas_server response.body:\r\n#{@data}"
+        unless @data.class == Hash # Webmock hack
+          case options.format.to_sym
+          when :json
+            @data = JSON.parse(@data, symbolize_names: true)
+          when :xml
+            @data = MultiXml.parse(@data)['userinfo']
+          end
+          log :debug, "Formatted response.body data: #{@data}"
+        end
+
+        @data
+      end
+
+
+      # Parse CAS server response and assign values as appropriate
+      def create_auth_info
+        log :debug, '.create_auth_info'
+        info = {}
+        info = auth_info_defaults(info)
+        info = auth_info_dynamic(info)
+        info = auth_info_custom(info)
+
+        session['omniauth.auth']['info'] = info
+      end
+
+      def info_defaults
+        [:dn, :email, :firstName, :lastName, :fullName, :citizenshipStatus,
+         :country, :grantBy, :organizations, :uid, :dutyorg, :visas,
+         :affiliations]
+      end
+
+      # Defualt auth_info fields
+      def auth_info_defaults(info)
+        info_defaults.each do |key_name|
+          info[key_name.to_s.to_snake] = @data[key_name]
+        end
+
+        info
+      end
+
+      # Dynamic auth_info fields
+      def auth_info_dynamic(info)
+        @data.each do |key, value|
+          info[key.to_s.to_snake] = value unless info_defaults.include?(key)
+        end
+
+        info
+      end
+
+      # Custom auth_info fields
+      def auth_info_custom(info)
+        info['common_name'] = get_dn(info['dn']).cn
+        set_name(info)
+
+        info
+      end
+
+      # Allow for a custom field for the name, or use a best guess default
+      def set_name(info)
+        # Do NOT override the value if it's returned from the CAS server
+        return info['name'] if info['name']
+        info['name'] = case options.name_format
+        when :cn
+          info['common_name']
+        when :full_name
+          info['full_name']
+        when :first_last_name
+          "#{info['first_name']} #{info['last_name']}"
+        end
+        info['name'] ||= info['common_name'] || info['full_name'] ||
+                         "#{info['first_name']} #{info['last_name']}"
+      end
+
+      # Coordinate getting DN from cert, fallback to header
+      def get_dn_by_type(type='subject')
+        raw_dn   = get_dn_from_certificate(type=type)
+        raw_dn ||= get_dn_from_header(type=type)
+      end
+
       # Reads the DN from headers
-      def get_dn_from_header(headers)
-        raw_dn = headers["#{options.subject_dn_header}"]
-        log :debug, "raw_dn from headers: #{raw_dn}"
+      def get_dn_from_header(type)
+        headers = request.env
+        if type == 'issuer'
+          raw_dn = headers["#{options.issuer_dn_header}"]
+        else
+          raw_dn = headers["#{options.subject_dn_header}"]
+        end
+        log :debug, "raw_dn (#{type}) from headers: #{raw_dn}"
 
         raw_dn
       end
 
       # Gets the DN from X509 certificate
-      def get_dn_from_env_certificate
+      def get_dn_from_certificate(type)
         cert_str = request.env["#{options.client_cert_header}"]
         if cert_str
           client_cert = cert_str.to_cert
-          log :debug, "certificate string:\r\n#{client_cert}"
-          raw_dn ||= parse_dn_from_certificate(client_cert)
-          log :debug, "raw_dn from cert: #{raw_dn}"
+          log :debug, "Client certificate:\r\n#{client_cert}"
+          raw_dn ||= parse_dn_from_certificate(client_cert, type)
+          log :debug, "raw_dn (#{type}) from cert: #{raw_dn}"
         end
 
         raw_dn
       end
 
-      # Parses the Subject DN out of an SSL X509 Client Certificate
-      def parse_dn_from_certificate(certificate)
-        raw_dn ||= certificate.subject.to_s
-      end
-
-      # Convert / to , for DN formatting
-      def format_dn_delimeter(dn_str)
-        dn_str.gsub('/',',')
-      end
-
-      # Ensure order of DN elements is proper for CAS server',' delimiter
-      def format_dn_element_order(dn_str)
-        dn = dn_str.split(',').reverse.join(',')
-        if dn_begins_properly?(dn)
-          dn
-        else
-          return fail!("DN invalid format for CAS server, DN was:\r\n#{dn}")
-        end
-      end
-
-      # Verify DN starts with 'CN='
-      def dn_begins_properly?(dn_str)
-        dn_str.nil? ? false : dn_str.start_with?('CN=')
+      # Parse the DN out of an SSL X509 Client Certificate
+      def parse_dn_from_certificate(certificate, type='subject')
+        certificate.send(type.to_sym).to_s
       end
 
       # Create a Faraday instance with the cas_server & appropriate SSL config
       def connection
-        log :debug, 'connection method'
-        @connection ||= Faraday.new cas_server, ssl: ssl_hash
+        log :debug, '.connection'
+
+        @conn ||= Faraday.new(url: options.cas_server, ssl: ssl_hash) do |conn|
+          conn.headers  = headers
+          conn.response :logger                  # log requests to STDOUT
+          conn.response :xml,  :content_type => /\bxml$/
+          conn.response :json, :content_type => /\bjson$/
+          conn.adapter  :excon
+        end
+      end
+
+      def headers
+        {
+          'Accept' => options.format_header,
+          'Content-Type' => options.format_header,
+          'X-XSRF-UseProtection' => ('false' if options.format_header),
+          'user-agent' => "Faraday via Ruby #{RUBY_VERSION}"
+        }
+      end
+
+      # Build out the query URL for CAS server with DN params
+      def query_url
+        user_dn    = env['omniauth.params']['user_dn']
+        build_query = "#{options.cas_server}#{options.authentication_path}"
+        build_query += "/#{user_dn}"
+        build_query += "/#{options.return_field}.#{options.format}"
+        URI::encode(build_query)
       end
 
       # Specifies which attributes are required arguments to initialize
@@ -160,12 +318,25 @@ ap response
         end
       end
 
+      def set_session_dn(dn_string, type='subject')
+        dn_type = case type
+        when 'subject'
+          'user_dn'
+        when 'issuer'
+          'issuer_dn'
+        else
+          fail "Invalid DN string type"
+        end
+        session['omniauth.params'] ||= {}
+        session['omniauth.params'][dn_type] = dn_string
+      end
+
       # Dynamically builds out Faraday's SSL config hash by merging passed
       # options hash with the default options.
       #
       # Available Faraday config options include:
-      # ca_file
-      # ca_path
+      # ca_file      (e.g., /usr/lib/ssl/certs/ca-certificates.crt)
+      # ca_path      (e.g., /usr/lib/ssl/certs)
       # cert_store
       # client_cert
       # client_key
@@ -177,13 +348,24 @@ ap response
       # version
       def ssl_hash
         ssl_defaults = {
-          ca_file:    '/usr/lib/ssl/certs/ca-certificates.crt',
-          client_cer: '/usr/lib/ssl/certs/cert.cer',
-          client_key: '/usr/lib/ssl/certs/cert.key',
-          version:    'SSLv3'
+          verify:       true,
+          verify_depth: 3,
+          version:      'TLSv1'
         }
 
-        ssl_defaults.merge(ssl_config)
+        custom_config = unhashie(options.ssl_config)
+        ssl_defaults.merge(custom_config)
+      end
+
+      # Retrieve DNC default & custom configs
+      #
+      # @param dn_str [String] The string of text you wish to parse into a DN
+      # @return [DN]
+      def get_dn(dn_str)
+        custom_order = %w(cn l st ou o c street dc uid)
+        default_opts = { dn_string: dn_str, string_order: custom_order }
+        dnc_config = unhashie(options.dnc_options)
+        DN.new( default_opts.merge(dnc_config) )
       end
     end
   end
