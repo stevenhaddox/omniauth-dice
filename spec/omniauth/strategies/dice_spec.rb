@@ -14,6 +14,12 @@ describe OmniAuth::Strategies::Dice do
   let(:client_dn_reversed)   { client_dn_from_cert.split('/').reverse.join('/') }
   let(:formatted_client_dn)  { 'CN=RUBY CERTIFICATE RBCERT,DC=RUBY-LANG,DC=ORG' }
 
+  # Travis-CI hack?
+  before(:all) do
+    @rack_env = ENV['RACK_ENV']
+    ENV['RACK_ENV'] = 'test'
+  end
+
   context "invalid params" do
     subject { invalid_subject }
     let(:subject_without_authentication_path) { OmniAuth::Strategies::Dice.new(app, cas_server: 'https://dice.dev') }
@@ -108,6 +114,48 @@ describe OmniAuth::Strategies::Dice do
       dice = OmniAuth::Strategies::Dice.new( app, dice_default_opts.merge({name_format: :first_last_name}) )
       name = dice.send(:set_name, @info_hash)
       expect(name).to eq("#{@info_hash['first_name']} #{@info_hash['last_name']}")
+    end
+  end
+
+  context ".identify_npe" do
+    before do
+      @dice = OmniAuth::Strategies::Dice.new( app, dice_default_opts )
+      @all_info = {
+        'dn'          => 'cn=twilight.sparkle,ou=c001,ou=mlp,ou=pny,o=princesses of celestia,c=us',
+        'full_name'   => 'Princess Twilight Sparkle',
+        'first_name'  => 'twilight',
+        'last_name'   => 'sparkle',
+        'email'       => 'twilight@example.org'
+      }
+    end
+
+    it "should identify a client as a likely npe when the CN contains a *.tld" do
+      npe = @dice.send( :identify_npe, @all_info.merge({'common_name' => 'twilight.mlp.com'}) )
+      expect(npe).to eq(true)
+    end
+
+    it "should identify a client as a likely npe when there is a DN & no email" do
+      ['email'].each { |k| @all_info.delete(k) }
+      npe = @dice.send(:identify_npe, @all_info)
+      expect(npe).to eq(true)
+    end
+
+    it "should identify a client as a likely npe when there is a DN, email, and NO name fields" do
+      ['full_name', 'first_name', 'last_name'].each { |k| @all_info.delete(k) }
+      npe = @dice.send(:identify_npe, @all_info)
+      expect(npe).to eq(true)
+    end
+
+    it "should identify a client as not an npe when there is a DN, email, and ANY name field" do
+      name_keys = ['full_name', 'first_name', 'last_name']
+      names = ['Twilight Sparkle', 'Twilight', 'Sparkle']
+      name_keys.each{ |key| @all_info.delete(key) }
+      name_keys.each_with_index do |key, index|
+        name_hash = @all_info.dup
+        name_hash[key] = names[index]
+        npe = @dice.send(:identify_npe, name_hash)
+        expect(npe).to eq(false)
+      end
     end
   end
 end
