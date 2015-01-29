@@ -30,6 +30,7 @@ module OmniAuth
     # @option name_format [Symbol] Format for auth_hash['info']['name']
     #   Defaults to attempting DN common name -> full name -> first & last name
     #   Valid options are: :cn, :full_name, :first_last_name to override
+    # @option primary_visa_str [String] String to trigger primary visa boolean
     class Dice
       include OmniAuth::Strategy
       attr_accessor :dn, :raw_dn, :data
@@ -52,6 +53,7 @@ module OmniAuth
       option :subject_dn_header,  'HTTP_SSL_CLIENT_S_DN'
       option :issuer_dn_header,   'HTTP_SSL_CLIENT_I_DN'
       option :name_format
+      option :primary_visa_str
 
       # Reformat DN to expected element order for CAS DN server (via dnc gem).
       def format_dn(dn_str)
@@ -195,6 +197,8 @@ module OmniAuth
       def auth_info_custom(info)
         info['common_name'] = get_dn(info['dn']).cn
         set_name(info)
+        has_primary_visa?(info)
+        info['likely_npe?'] = identify_npe(info)
 
         info
       end
@@ -215,10 +219,56 @@ module OmniAuth
                          "#{info['first_name']} #{info['last_name']}"
       end
 
+      # Determine if client has the primary visa
+      def has_primary_visa?(info)
+        return info['primary_visa?'] = nil unless info['visas']
+        return info['primary_visa?'] = nil unless options.primary_visa
+        info['primary_visa?'] = info['visas'].include?(options.primary_visa)
+      end
+
+      # Determine if a client is likely a non-person entity
+      def identify_npe(info)
+        info['likely_npe?']   = nil
+        return true  if auth_cn_with_tld?(info['common_name']) == true
+        return true  if auth_info_missing_email?(info)         == true
+        return true  if auth_has_email_without_names?(info)    == true
+        return false if auth_has_email_with_any_name?(info)    == true
+      end
+
+      # Identify if there's a domain w/ TLD in the common_name
+      def auth_cn_with_tld?(common_name)
+        !!( common_name =~ /\w{3}\.\w+(\.\w{3,}+)?/ )
+      end
+
+      # Determine if the auth_hash does not have an email address
+      def auth_info_missing_email?(info)
+        !( info['email'] ) # !! returns false if no email, ! returns true
+      end
+
+      # Determine if the auth_hash has an email but no name fields
+      def auth_has_email_without_names?(info)
+        return false unless info['email']
+        return true if auth_info_has_any_name?(info) == false
+      end
+
+      # Determine if the auth_hash has an email with ANY name field
+      def auth_has_email_with_any_name?(info)
+        return false unless info['email']
+        return true if auth_info_has_any_name?(info) == true
+      end
+
+      # Determine if any name fields are present in the auth_hash['info']
+      def auth_info_has_any_name?(info)
+        name   = info['full_name']
+        name ||= info['first_name']
+        name ||= info['last_name']
+        !!(name)
+      end
+
       # Coordinate getting DN from cert, fallback to header
       def get_dn_by_type(type='subject')
-        raw_dn   = get_dn_from_certificate(type=type)
-        raw_dn ||= get_dn_from_header(type=type)
+        raw_dn   = get_dn_from_certificate(type)
+        raw_dn ||= get_dn_from_header(type)
       end
 
       # Reads the DN from headers
