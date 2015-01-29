@@ -14,6 +14,12 @@ describe OmniAuth::Strategies::Dice do
   let(:client_dn_reversed)   { client_dn_from_cert.split('/').reverse.join('/') }
   let(:formatted_client_dn)  { 'CN=RUBY CERTIFICATE RBCERT,DC=RUBY-LANG,DC=ORG' }
 
+  # Travis-CI hack?
+  before(:all) do
+    @rack_env = ENV['RACK_ENV']
+    ENV['RACK_ENV'] = 'test'
+  end
+
   context "invalid params" do
     subject { invalid_subject }
     let(:subject_without_authentication_path) { OmniAuth::Strategies::Dice.new(app, cas_server: 'https://dice.dev') }
