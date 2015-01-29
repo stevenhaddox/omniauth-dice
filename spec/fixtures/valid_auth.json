@@ -1,7 +1,7 @@
 {
   "citizenshipStatus": "US",
   "country": "USA",
-  "dn": "cn=twilight.sparkle,ou=c001,ou=mlp,ou=pny,o=princesses of celestia,c=us",
+  "dn": "cn=pr. twilight sparkle,ou=c001,ou=mlp,ou=pny,o=princesses of celestia,c=us",
   "email": "twilight@example.org",
   "firstName": "twilight",
   "lastName": "sparkle",
