@@ -118,17 +118,44 @@ describe OmniAuth::Strategies::Dice do
   end
 
   context ".identify_npe" do
-    pending
+    before do
+      @dice = OmniAuth::Strategies::Dice.new( app, dice_default_opts )
+      @all_info = {
+        'dn'          => 'cn=twilight.sparkle,ou=c001,ou=mlp,ou=pny,o=princesses of celestia,c=us',
+        'full_name'   => 'Princess Twilight Sparkle',
+        'first_name'  => 'twilight',
+        'last_name'   => 'sparkle',
+        'email'       => 'twilight@example.org'
+      }
+    end
+
     it "should identify a client as a likely npe when the CN contains a *.tld" do
+      npe = @dice.send( :identify_npe, @all_info.merge({'common_name' => 'twilight.mlp.com'}) )
+      expect(npe).to eq(true)
     end
 
     it "should identify a client as a likely npe when there is a DN & no email" do
+      ['email'].each { |k| @all_info.delete(k) }
+      npe = @dice.send(:identify_npe, @all_info)
+      expect(npe).to eq(true)
     end
 
     it "should identify a client as a likely npe when there is a DN, email, and NO name fields" do
+      ['full_name', 'first_name', 'last_name'].each { |k| @all_info.delete(k) }
+      npe = @dice.send(:identify_npe, @all_info)
+      expect(npe).to eq(true)
     end
 
     it "should identify a client as not an npe when there is a DN, email, and ANY name field" do
+      name_keys = ['full_name', 'first_name', 'last_name']
+      names = ['Twilight Sparkle', 'Twilight', 'Sparkle']
+      name_keys.each{ |key| @all_info.delete(key) }
+      name_keys.each_with_index do |key, index|
+        name_hash = @all_info.dup
+        name_hash[key] = names[index]
+        npe = @dice.send(:identify_npe, name_hash)
+        expect(npe).to eq(false)
+      end
     end
   end
 end

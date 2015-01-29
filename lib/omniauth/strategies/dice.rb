@@ -198,7 +198,7 @@ module OmniAuth
         info['common_name'] = get_dn(info['dn']).cn
         set_name(info)
         has_primary_visa?(info)
-        identify_npe(info)
+        info['likely_npe?'] = identify_npe(info)
 
         info
       end
@@ -229,32 +229,40 @@ module OmniAuth
       # Determine if a client is likely a non-person entity
       def identify_npe(info)
         info['likely_npe?']   = nil
-        info['likely_npe?']   = true  if npe_true?(info)  == true
-        info['likely_npe?'] ||= false if npe_false?(info) == true
+        return true  if auth_cn_with_tld?(info['common_name']) == true
+        return true  if auth_info_missing_email?(info)         == true
+        return true  if auth_has_email_without_names?(info)    == true
+        return false if auth_has_email_with_any_name?(info)    == true
       end
 
-      def npe_true?(info)
-        likely_npe = false
-        unless info['email']
-          likely_npe = true
-        else
-          if( info['first_name'].nil? && info['last_name'].nil? &&
-              info['full_name'].nil? )
-            likely_npe = true
-          end
-        end
-
-        likely_npe
+      # Identify if there's a domain w/ TLD in the common_name
+      def auth_cn_with_tld?(common_name)
+        !!( common_name =~ /\w{3}\.\w+(\.\w{3,}+)?/ )
       end
 
-      def npe_false?(info)
-        person = false
-        if ( info['first_name'] || info['last_name'] || info['full_name'] ) &&
-             info['email']
-          person = true
-        end
+      # Determine if the auth_hash does not have an email address
+      def auth_info_missing_email?(info)
+        !( info['email'] ) # !! returns false if no email, ! returns true
+      end
 
-        person
+      # Determine if the auth_hash has an email but no name fields
+      def auth_has_email_without_names?(info)
+        return false unless info['email']
+        return true if auth_info_has_any_name?(info) == false
+      end
+
+      # Determine if the auth_hash has an email with ANY name field
+      def auth_has_email_with_any_name?(info)
+        return false unless info['email']
+        return true if auth_info_has_any_name?(info) == true
+      end
+
+      # Determine if any name fields are present in the auth_hash['info']
+      def auth_info_has_any_name?(info)
+        name   = info['full_name']
+        name ||= info['first_name']
+        name ||= info['last_name']
+        !!(name)
       end
 
       # Coordinate getting DN from cert, fallback to header

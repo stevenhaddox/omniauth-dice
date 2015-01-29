@@ -21,13 +21,13 @@ describe OmniAuth::Strategies::Dice, type: :strategy do
         "raw_info" => valid_user_json
       },
       "info" => {
-        "dn" => "cn=twilight.sparkle,ou=c001,ou=mlp,ou=pny,o=princesses of celestia,c=us",
+        "dn" => "cn=pr. twilight sparkle,ou=c001,ou=mlp,ou=pny,o=princesses of celestia,c=us",
         "email" => "twilight@example.org",
         "first_name"  => "twilight",
         "last_name"   => "sparkle",
         "full_name"   => "twilight sparkle",
-        "common_name" => "twilight.sparkle",
-        "name"        => "twilight.sparkle",
+        "common_name" => "pr. twilight sparkle",
+        "name"        => "pr. twilight sparkle",
         "citizenship_status" => "US",
         "country" => "USA",
         "grant_by" => [
@@ -153,7 +153,10 @@ describe OmniAuth::Strategies::Dice, type: :strategy do
         expect(last_response.location).to eq('/')
         raw_info = last_request.env['rack.session']['omniauth.auth']['extra']['raw_info']
         expect(last_request.env['rack.session']['omniauth.auth']).to be_kind_of(Hash)
+        ap '>'*40
         ap last_request.env['rack.session']['omniauth.auth'].sort
+        ap '<'*40
+        ap auth_hash.sort
         expect(last_request.env['rack.session']['omniauth.auth'].sort).to eq(auth_hash.sort)
       end
 
