@@ -110,4 +110,19 @@ describe OmniAuth::Strategies::Dice do
       expect(name).to eq("#{@info_hash['first_name']} #{@info_hash['last_name']}")
     end
   end
+
+  context ".identify_npe" do
+    pending
+    it "should identify a client as a likely npe when the CN contains a *.tld" do
+    end
+
+    it "should identify a client as a likely npe when there is a DN & no email" do
+    end
+
+    it "should identify a client as a likely npe when there is a DN, email, and NO name fields" do
+    end
+
+    it "should identify a client as not an npe when there is a DN, email, and ANY name field" do
+    end
+  end
 end

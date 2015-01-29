@@ -47,7 +47,9 @@ describe OmniAuth::Strategies::Dice, type: :strategy do
         "affiliations" => [
           "WONDERBOLTS"
         ],
-        "telephone_number" => "555-555-5555"
+        "telephone_number" => "555-555-5555",
+        "primary_visa?" => true,
+        "likely_npe?"  => false
       }
     }
   end
@@ -125,11 +127,12 @@ describe OmniAuth::Strategies::Dice, type: :strategy do
           ca_file:     'spec/certs/CA.pem',
           client_cert: 'spec/certs/client.pem',
           client_key:  'spec/certs/key.np.pem'
-        }
+        },
+        primary_visa: 'CLOUDSDALE'
       })
 
       stub_request(:get, "https://example.org:3000/dn/cn=ruby%20certificate%20rbcert,dc=ruby-lang,dc=org/info.json?issuerDN=cn=ruby%20ca,dc=ruby-lang,dc=org").
-      with(:headers => {'Accept'=>'application/json', 'Content-Type'=>'application/json', 'Host'=>'example.org:3000', 'User-Agent'=>'Faraday via Ruby 2.1.5', 'X-Xsrf-Useprotection'=>'false'}).
+        with(:headers => {'Accept'=>'application/json', 'Content-Type'=>'application/json', 'Host'=>'example.org:3000', 'User-Agent'=>/^Faraday via Ruby.*$/, 'X-Xsrf-Useprotection'=>'false'}).
       to_return(status: 200, body: valid_user_json, headers: {})
     end
 
@@ -150,7 +153,8 @@ describe OmniAuth::Strategies::Dice, type: :strategy do
         expect(last_response.location).to eq('/')
         raw_info = last_request.env['rack.session']['omniauth.auth']['extra']['raw_info']
         expect(last_request.env['rack.session']['omniauth.auth']).to be_kind_of(Hash)
-        expect(last_request.env['rack.session']['omniauth.auth']).to eq(auth_hash)
+        ap last_request.env['rack.session']['omniauth.auth'].sort
+        expect(last_request.env['rack.session']['omniauth.auth'].sort).to eq(auth_hash.sort)
       end
 
       it 'should return a 200 with an XML object of user information on success' do
@@ -167,7 +171,7 @@ describe OmniAuth::Strategies::Dice, type: :strategy do
           }
         })
         stub_request(:get, "https://example.org:3000/dn/cn=ruby%20certificate%20rbcert,dc=ruby-lang,dc=org/info.xml?issuerDN=cn=ruby%20ca,dc=ruby-lang,dc=org").
-        with(:headers => {'Accept'=>'application/xml', 'Content-Type'=>'application/xml', 'Host'=>'example.org:3000', 'User-Agent'=>'Faraday via Ruby 2.1.5', 'X-Xsrf-Useprotection'=>'false'}).
+        with(:headers => {'Accept'=>'application/xml', 'Content-Type'=>'application/xml', 'Host'=>'example.org:3000', 'User-Agent'=>/^Faraday via Ruby.*$/, 'X-Xsrf-Useprotection'=>'false'}).
         to_return(status: 200, body: valid_user_xml, headers: {})
 
         header 'Ssl-Client-Cert', user_cert
@@ -182,7 +186,7 @@ describe OmniAuth::Strategies::Dice, type: :strategy do
     context 'fail' do
       it 'should raise a 404 with text for a non-existent user DN' do
         stub_request(:get, "https://example.org:3000/dn/cn=ruby%20certificate%20rbcert,dc=ruby-lang,dc=org/info.json?issuerDN=cn=ruby%20ca,dc=ruby-lang,dc=org").
-        with(:headers => {'Accept'=>'application/json', 'Content-Type'=>'application/json', 'Host'=>'example.org:3000', 'User-Agent'=>'Faraday via Ruby 2.1.5', 'X-Xsrf-Useprotection'=>'false'}).
+        with(:headers => {'Accept'=>'application/json', 'Content-Type'=>'application/json', 'Host'=>'example.org:3000', 'User-Agent'=>/^Faraday via Ruby.*$/, 'X-Xsrf-Useprotection'=>'false'}).
         to_return(status: 404, body: "User of dn:cn=ruby certificate rbcert,dc=ruby-lang,dc=org not found", headers: {})
 
         header 'Ssl-Client-Cert', user_cert
