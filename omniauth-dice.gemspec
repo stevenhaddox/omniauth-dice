@@ -38,11 +38,11 @@ Gem::Specification.new do |spec|
 
   spec.add_dependency 'cert_munger', '~> 0.1'
   spec.add_dependency 'dnc', '~> 0.1'
-  spec.add_dependency 'excon'
-  spec.add_dependency 'faraday'
-  spec.add_dependency 'faraday_middleware'
+  spec.add_dependency 'excon', '~> 0.43'
+  spec.add_dependency 'faraday', '~> 0.9'
+  spec.add_dependency 'faraday_middleware', '~> 0.9'
   spec.add_dependency 'logging', '~> 1.8'
-  spec.add_dependency 'multi_xml'
+  spec.add_dependency 'multi_xml', '~> 0.5'
   spec.add_dependency 'omniauth', '~> 1.0'
 
   spec.cert_chain  = ['certs/stevenhaddox.pem']

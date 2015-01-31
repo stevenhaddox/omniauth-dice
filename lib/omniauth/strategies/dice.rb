@@ -36,8 +36,8 @@ module OmniAuth
       attr_accessor :dn, :raw_dn, :data
       args [:cas_server, :authentication_path]
 
-      def initialize(*args, &block)
-        validate_required_params(args)
+      def initialize(app, *args, &block)
+        required_params_defined?(args)
 
         super
       end
@@ -338,34 +338,32 @@ module OmniAuth
         [:cas_server, :authentication_path]
       end
 
-      # Verify that arguments required to properly run are present or fail hard
-      # NOTE: CANNOT call "log" method from initialize block hooks
-      def validate_required_params(args)
-        required_params.each do |param|
-          param_present = nil
-          args.each do |arg|
-            param_present = true if param_in_arg?(param, arg) == true
-          end
-
-          if param_present.nil?
-            error_msg = "omniauth-dice error: #{param} is required"
-            fail RequiredCustomParamError, error_msg
+      # Determine if required arguments are present or fail hard
+      # NOTE: CANNOT call "log" method from within init block methods
+      def required_params_defined?(args)
+        required_hash = {}
+        required_params.each do |key|
+          required_hash[key] = false
+        end
+        args.each do |arg|
+          if arg.class == Hash
+            arg.each do |sub_arg, value|
+              required_hash[sub_arg] = true if required_hash[sub_arg] == false
+            end
+          else
+            required_hash[arg.to_sym] = true if required_hash[sub_arg] == false
           end
         end
+        required_hash.reject!{ |arg, val| arg if val == true }
+        fail_on_invalid_params(required_hash.keys) unless required_hash.empty?
       end
 
-      # Determine if a specified param symbol exists in the passed argument
-      # NOTE: CANNOT call "log" method from initialize block hooks
-      def param_in_arg?(param, arg)
-        if arg.class == Hash
-          if arg.key?(param.to_sym)
-            true
-          else
-            false
-          end
-        else
-          false
+      def fail_on_invalid_params(missing_params)
+        error_msg = ""
+        missing_params.each do |param|
+          error_msg += "omniauth-dice error: #{param} is required\r\n"
         end
+        fail RequiredCustomParamError, error_msg
       end
 
       def set_session_dn(dn_string, type='subject')

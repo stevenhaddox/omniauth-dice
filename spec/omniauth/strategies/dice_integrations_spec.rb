@@ -62,6 +62,8 @@ describe OmniAuth::Strategies::Dice, type: :strategy do
     self.app = Rack::Builder.app do
       use Rack::Session::Cookie, :secret => '1337geeks'
       use RackSessionAccess::Middleware
+      ap '-'*80
+      ap dice_options
       use OmniAuth::Strategies::Dice, dice_options
       run lambda{|env| [404, {'env' => env}, ["HELLO!"]]}
     end
