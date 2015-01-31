@@ -34,13 +34,6 @@ module OmniAuth
     class Dice
       include OmniAuth::Strategy
       attr_accessor :dn, :raw_dn, :data
-      args [:cas_server, :authentication_path]
-
-      def initialize(app, *args, &block)
-        required_params_defined?(args)
-
-        super
-      end
 
       option :dnc_options, {}
       option :cas_server, nil
@@ -60,24 +53,31 @@ module OmniAuth
         get_dn(dn_str).to_s
       end
 
-      protected
-
-      # Change Hashie indifferent access keys back to symbols
-      def unhashie(hash)
-        tmp_hash = {}
-        hash.each do |key, value|
-          tmp_hash[key.to_sym] = value
-        end
-
-        tmp_hash
+      # Specifies which attributes are required arguments to initialize
+      def required_params
+        [:cas_server, :authentication_path]
       end
 
-      def setup_phase(*args)
-        log :debug, 'setup_phase'
-        super
+      # Determine if required arguments are present or fail hard
+      # NOTE: CANNOT call "log" method from within init block methods
+      def validate_required_params
+        log :error, '.validate_required_params'
+        log :error, options.to_yaml
+        required_params.each do |param|
+          log :debug, param
+          ap param
+          ap options.cas_server.to_s
+          ap options.authentication_path.to_s
+          ap options.send(param).to_s
+          unless options.send(param)
+            error_msg = "omniauth-dice error: #{param} is required"
+            fail RequiredCustomParamError, error_msg
+          end
+        end
       end
 
       def request_phase
+        validate_required_params
         subject_dn = get_dn_by_type('subject')
         return fail!('You need a valid DN to authenticate.') unless subject_dn
         user_dn = format_dn(subject_dn)
@@ -109,7 +109,19 @@ module OmniAuth
         redirect request.env['omniauth.origin'] || '/'
       end
 
+      protected
+
       private
+
+      # Change Hashie indifferent access keys back to symbols
+      def unhashie(hash)
+        tmp_hash = {}
+        hash.each do |key, value|
+          tmp_hash[key.to_sym] = value
+        end
+
+        tmp_hash
+      end
 
       # Coordinate building out the auth_hash
       def create_auth_hash
@@ -157,7 +169,6 @@ module OmniAuth
         @data
       end
 
-
       # Parse CAS server response and assign values as appropriate
       def create_auth_info
         log :debug, '.create_auth_info'
@@ -169,6 +180,7 @@ module OmniAuth
         session['omniauth.auth']['info'] = info
       end
 
+      # Default ['omniauth.auth']['info'] field names
       def info_defaults
         [:dn, :email, :firstName, :lastName, :fullName, :citizenshipStatus,
          :country, :grantBy, :organizations, :uid, :dutyorg, :visas,
@@ -331,39 +343,6 @@ module OmniAuth
         build_query += "/#{user_dn}"
         build_query += "/#{options.return_field}.#{options.format}"
         URI::encode(build_query)
-      end
-
-      # Specifies which attributes are required arguments to initialize
-      def required_params
-        [:cas_server, :authentication_path]
-      end
-
-      # Determine if required arguments are present or fail hard
-      # NOTE: CANNOT call "log" method from within init block methods
-      def required_params_defined?(args)
-        required_hash = {}
-        required_params.each do |key|
-          required_hash[key] = false
-        end
-        args.each do |arg|
-          if arg.class == Hash
-            arg.each do |sub_arg, value|
-              required_hash[sub_arg] = true if required_hash[sub_arg] == false
-            end
-          else
-            required_hash[arg.to_sym] = true if required_hash[sub_arg] == false
-          end
-        end
-        required_hash.reject!{ |arg, val| arg if val == true }
-        fail_on_invalid_params(required_hash.keys) unless required_hash.empty?
-      end
-
-      def fail_on_invalid_params(missing_params)
-        error_msg = ""
-        missing_params.each do |param|
-          error_msg += "omniauth-dice error: #{param} is required\r\n"
-        end
-        fail RequiredCustomParamError, error_msg
       end
 
       def set_session_dn(dn_string, type='subject')
