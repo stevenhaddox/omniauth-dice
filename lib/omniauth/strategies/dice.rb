@@ -30,7 +30,7 @@ module OmniAuth
     # @option name_format [Symbol] Format for auth_hash['info']['name']
     #   Defaults to attempting DN common name -> full name -> first & last name
     #   Valid options are: :cn, :full_name, :first_last_name to override
-    # @option primary_visa_str [String] String to trigger primary visa boolean
+    # @option primary_visa [String] String to trigger primary visa boolean
     class Dice
       include OmniAuth::Strategy
       attr_accessor :dn, :raw_dn, :data
@@ -53,7 +53,7 @@ module OmniAuth
       option :subject_dn_header,  'HTTP_SSL_CLIENT_S_DN'
       option :issuer_dn_header,   'HTTP_SSL_CLIENT_I_DN'
       option :name_format
-      option :primary_visa_str
+      option :primary_visa
 
       # Reformat DN to expected element order for CAS DN server (via dnc gem).
       def format_dn(dn_str)
@@ -221,8 +221,8 @@ module OmniAuth
 
       # Determine if client has the primary visa
       def has_primary_visa?(info)
-        return info['primary_visa?'] = nil unless info['visas']
-        return info['primary_visa?'] = nil unless options.primary_visa
+        return info['primary_visa?'] = false unless info['visas']
+        return info['primary_visa?'] = false unless options.primary_visa
         info['primary_visa?'] = info['visas'].include?(options.primary_visa)
       end
 
