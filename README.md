@@ -32,6 +32,7 @@ Setup your OmniAuth::Dice builder like so:
   authentication_path: '/dn',
   format_header:       'application/xml', # default is 'application/json'
   format:              'xml', # default is 'json'
+  primary_visa:        'EQUESTRIA', # Optional
   dnc_options: { transformation: 'downcase' }, # see `dnc` gem for all options
   ssl_config:  {
     ca_file:     'spec/certs/CA.pem',
