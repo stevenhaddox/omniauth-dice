@@ -158,4 +158,25 @@ describe OmniAuth::Strategies::Dice do
       end
     end
   end
+
+  context ".primary_visa?" do
+    it 'should return false if no visas are defined' do
+      dice = OmniAuth::Strategies::Dice.new( app, dice_default_opts.merge({primary_visa: 'EQUESTRIA'}) )
+      visa_present = dice.send( :has_primary_visa?, { } )
+      expect(visa_present).to eq(false)
+    end
+
+    it "should return false if the visa is not present in ['info']['visas']" do
+      dice = OmniAuth::Strategies::Dice.new( app, dice_default_opts.merge({primary_visa: 'EQUESTRIA'}) )
+      visa_present = dice.send( :has_primary_visa?, {'visas' => ['CLOUDSDALE','PONYVILLE']} )
+      expect(visa_present).to eq(false)
+    end
+
+    it "should return true if the visa is present in ['info']['visas']" do
+      dice = OmniAuth::Strategies::Dice.new( app, dice_default_opts.merge({primary_visa: 'EQUESTRIA'}) )
+      visa_present = dice.send( :has_primary_visa?, {'visas' => ['CLOUDSDALE','EQUESTRIA'] } )
+      expect(visa_present).to eq(true)
+    end
+  end
+
 end
