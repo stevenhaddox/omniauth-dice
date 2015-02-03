@@ -59,9 +59,8 @@ module OmniAuth
       end
 
       # Determine if required arguments are present or fail hard
-      # NOTE: CANNOT call "log" method from within init block methods
       def validate_required_params
-        log :error, '.validate_required_params'
+        log :debug, '.validate_required_params'
         required_params.each do |param|
           unless options.send(param)
             error_msg = "omniauth-dice error: #{param} is required"
@@ -130,16 +129,10 @@ module OmniAuth
       info do
         log :debug, '.info'
         info = {}
-        log :debug, info.inspect
         info = auth_info_defaults(info)
-        log :debug, info.inspect
         info = auth_info_dynamic(info)
-        log :debug, info.inspect
         info = auth_info_custom(info)
-        log :debug, info.inspect
 
-        #session['omniauth.auth']['info'] = info
-        log :error, info.inspect
         info
       end
 
