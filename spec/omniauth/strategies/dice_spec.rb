@@ -25,11 +25,11 @@ describe OmniAuth::Strategies::Dice do
     let(:subject_without_authentication_path) { OmniAuth::Strategies::Dice.new(app, cas_server: 'https://dice.dev') }
 
     it 'should require a cas server url' do
-      expect{ subject }.to raise_error(RequiredCustomParamError)
+      expect{ subject.request_phase }.to raise_error(RequiredCustomParamError, "omniauth-dice error: cas_server is required")
     end
 
     it 'should require an authentication path' do
-      expect{ subject_without_authentication_path }.to raise_error(RequiredCustomParamError)
+      expect{ subject_without_authentication_path.request_phase }.to raise_error(RequiredCustomParamError, "omniauth-dice error: authentication_path is required")
     end
   end
 
