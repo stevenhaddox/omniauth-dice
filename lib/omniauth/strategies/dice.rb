@@ -34,13 +34,6 @@ module OmniAuth
     class Dice
       include OmniAuth::Strategy
       attr_accessor :dn, :raw_dn, :data
-      args [:cas_server, :authentication_path]
-
-      def initialize(app, *args, &block)
-        required_params_defined?(args)
-
-        super
-      end
 
       option :dnc_options, {}
       option :cas_server, nil
@@ -60,24 +53,25 @@ module OmniAuth
         get_dn(dn_str).to_s
       end
 
-      protected
-
-      # Change Hashie indifferent access keys back to symbols
-      def unhashie(hash)
-        tmp_hash = {}
-        hash.each do |key, value|
-          tmp_hash[key.to_sym] = value
-        end
-
-        tmp_hash
+      # Specifies which attributes are required arguments to initialize
+      def required_params
+        [:cas_server, :authentication_path]
       end
 
-      def setup_phase(*args)
-        log :debug, 'setup_phase'
-        super
+      # Determine if required arguments are present or fail hard
+      # NOTE: CANNOT call "log" method from within init block methods
+      def validate_required_params
+        log :error, '.validate_required_params'
+        required_params.each do |param|
+          unless options.send(param)
+            error_msg = "omniauth-dice error: #{param} is required"
+            fail RequiredCustomParamError, error_msg
+          end
+        end
       end
 
       def request_phase
+        validate_required_params
         subject_dn = get_dn_by_type('subject')
         return fail!('You need a valid DN to authenticate.') unless subject_dn
         user_dn = format_dn(subject_dn)
@@ -103,72 +97,65 @@ module OmniAuth
           log :error, response.inspect
           return fail!(:invalid_credentials)
         end
-        @data = response.body
-        create_auth_hash
+        @raw_data = response.body
+        @data = parse_response_data
+        session['omniauth.auth'] ||= auth_hash
 
         redirect request.env['omniauth.origin'] || '/'
       end
 
-      private
-
-      # Coordinate building out the auth_hash
-      def create_auth_hash
-        log :debug, '.create_auth_hash'
-        init_auth_hash
-        set_auth_uid
-        parse_response_data
-        create_auth_info
-      end
-
-      # Initialize the auth_hash expected fields
-      def init_auth_hash
-        log :debug, '.init_auth_hash'
-        session['omniauth.auth'] ||= {
-          'provider' => 'Dice',
-          'uid'      => nil,
-          'info'     => nil,
-          'extra'    => {
-            'raw_info' => nil
-          }
+      def auth_hash
+        log :debug, '.auth_hash'
+        {
+          'provider' => name,
+          'uid'      => uid,
+          'info'     => info,
+          'extra'    => extra
         }
       end
 
       # Set the user's uid field for the auth_hash
-      def set_auth_uid
-        log :debug, '.set_auth_uid'
-        session['omniauth.auth']['uid'] = env['omniauth.params']['user_dn']
+      uid do
+        log :debug, '.uid'
+        env['omniauth.params']['user_dn']
       end
 
       # Detect data format, parse with appropriate library
-      def parse_response_data
-        log :debug, '.parse_response_data'
-        session['omniauth.auth']['extra']['raw_info'] = @data
-        log :debug, "cas_server response.body:\r\n#{@data}"
-        unless @data.class == Hash # Webmock hack
-          case options.format.to_sym
-          when :json
-            @data = JSON.parse(@data, symbolize_names: true)
-          when :xml
-            @data = MultiXml.parse(@data)['userinfo']
-          end
-          log :debug, "Formatted response.body data: #{@data}"
-        end
-
-        @data
+      extra do
+        log :debug, '.extra'
+        { 'raw_info' => @raw_data }
       end
-
 
       # Parse CAS server response and assign values as appropriate
-      def create_auth_info
-        log :debug, '.create_auth_info'
+      info do
+        log :debug, '.info'
         info = {}
+        log :debug, info.inspect
         info = auth_info_defaults(info)
+        log :debug, info.inspect
         info = auth_info_dynamic(info)
+        log :debug, info.inspect
         info = auth_info_custom(info)
+        log :debug, info.inspect
 
-        session['omniauth.auth']['info'] = info
+        #session['omniauth.auth']['info'] = info
+        log :error, info.inspect
+        info
       end
 
+      private
+
+      # Change Hashie indifferent access keys back to symbols
+      def unhashie(hash)
+        tmp_hash = {}
+        hash.each do |key, value|
+          tmp_hash[key.to_sym] = value
+        end
+
+        tmp_hash
+      end
+
+      # Default ['omniauth.auth']['info'] field names
       def info_defaults
         [:dn, :email, :firstName, :lastName, :fullName, :citizenshipStatus,
          :country, :grantBy, :organizations, :uid, :dutyorg, :visas,
@@ -333,37 +320,21 @@ module OmniAuth
         URI::encode(build_query)
       end
 
-      # Specifies which attributes are required arguments to initialize
-      def required_params
-        [:cas_server, :authentication_path]
-      end
-
-      # Determine if required arguments are present or fail hard
-      # NOTE: CANNOT call "log" method from within init block methods
-      def required_params_defined?(args)
-        required_hash = {}
-        required_params.each do |key|
-          required_hash[key] = false
-        end
-        args.each do |arg|
-          if arg.class == Hash
-            arg.each do |sub_arg, value|
-              required_hash[sub_arg] = true if required_hash[sub_arg] == false
-            end
-          else
-            required_hash[arg.to_sym] = true if required_hash[sub_arg] == false
+      # Detect data format, parse with appropriate library
+      def parse_response_data
+        log :debug, '.parse_response_data'
+        log :debug, "cas_server response.body:\r\n#{@raw_data}"
+        unless @raw_data.class == Hash # Webmock hack
+          case options.format.to_sym
+          when :json
+            formatted_data = JSON.parse(@raw_data, symbolize_names: true)
+          when :xml
+            formatted_data = MultiXml.parse(@raw_data)['userinfo']
           end
+          log :debug, "Formatted response.body data: #{formatted_data}"
         end
-        required_hash.reject!{ |arg, val| arg if val == true }
-        fail_on_invalid_params(required_hash.keys) unless required_hash.empty?
-      end
 
-      def fail_on_invalid_params(missing_params)
-        error_msg = ""
-        missing_params.each do |param|
-          error_msg += "omniauth-dice error: #{param} is required\r\n"
-        end
-        fail RequiredCustomParamError, error_msg
+        formatted_data
       end
 
       def set_session_dn(dn_string, type='subject')
