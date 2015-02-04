@@ -26,19 +26,37 @@ Or install it yourself with:
 
 Setup your OmniAuth::Dice builder like so:
 
+Ruby on Rails (3.0+):
 ```ruby
-{
+Rails.application.config.middleware.use OmniAuth::Builder do
+  provider :dice, {
+    cas_server:          'https://example.org',
+    authentication_path: '/users',
+    primary_visa:        'EQUESTRIA',
+    dnc_options: { :transformation => 'downcase' }, # see `dnc` gem for all options
+    ssl_config: {
+        ca_file:     '/path/to/your/CA.all.pem',
+        client_cert: '/path/to/server/cert.pem',
+        client_key:  '/path/to/server/key.np.key'
+    }
+  }
+end
+```
+
+Rack / Sinatra:
+```ruby
+use OmniAuth::Strategies::Dice, {
   cas_server:          'https://example.org:3000',
   authentication_path: '/dn',
   format_header:       'application/xml', # default is 'application/json'
   format:              'xml', # default is 'json'
   primary_visa:        'EQUESTRIA', # Optional
   dnc_options: { transformation: 'downcase' }, # see `dnc` gem for all options
-  ssl_config:  {
-    ca_file:     'spec/certs/CA.pem',
-    client_cert: 'spec/certs/client.pem',
-    client_key:  'spec/certs/key.np.pem'
-  } # See OmniAuth::Strategies::Dice.ssl_hash for all options
+  ssl_config: {
+      ca_file:     '/path/to/your/CA.all.pem',
+      client_cert: '/path/to/server/cert.pem',
+      client_key:  '/path/to/server/key.np.key'
+  }
 }
 ```
 
@@ -67,14 +85,14 @@ Full configuration options are as follows:
 `Faraday` (the HTTP library used by OmniAuth) can accept certificate paths:
 
 ```
-  client_cert: 'spec/certs/client.pem',
-  client_key:  'spec/certs/key.np.pem'
+  client_cert: 'path/to/server/cert.pem',
+  client_key:  'path/to/server/key.np.pem'
 ```
 
 Or it also works with actual certificates (such as to pass a passphrase in):
 ```
-  client_cert: File.read('spec/certs/client.pem').to_cert,
-  client_key:  OpenSSL::PKey::RSA.new(File.read('spec/certs/key.pem'), 'PASSW0RD')
+  client_cert: File.read('path/to/server/cert.pem').to_cert,
+  client_key:  OpenSSL::PKey::RSA.new(File.read('path/to/server/key.pem'), 'PASSW0RD')
 ```
 
 ## Contributing
