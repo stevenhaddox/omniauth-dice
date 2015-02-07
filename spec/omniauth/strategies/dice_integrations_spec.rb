@@ -142,8 +142,6 @@ describe OmniAuth::Strategies::Dice, type: :strategy do
         header 'Ssl-Client-Cert', user_cert
         get '/auth/dice'
         follow_redirect!
-        expect(last_response.location).to eq('/')
-        ap last_request.env['rack.session']['omniauth.auth'].inspect
         raw_info = last_request.env['rack.session']['omniauth.auth']['extra']['raw_info']
         expect(raw_info).to eq(valid_user_json)
       end
@@ -152,7 +150,6 @@ describe OmniAuth::Strategies::Dice, type: :strategy do
         header 'Ssl-Client-Cert', user_cert
         get '/auth/dice'
         follow_redirect!
-        expect(last_response.location).to eq('/')
         raw_info = last_request.env['rack.session']['omniauth.auth']['extra']['raw_info']
         expect(last_request.env['rack.session']['omniauth.auth']).to be_kind_of(Hash)
         expect(last_request.env['rack.session']['omniauth.auth'].sort).to eq(auth_hash.sort)
@@ -178,7 +175,6 @@ describe OmniAuth::Strategies::Dice, type: :strategy do
         header 'Ssl-Client-Cert', user_cert
         get '/auth/dice'
         follow_redirect!
-        expect(last_response.location).to eq('/')
         raw_info = last_request.env['rack.session']['omniauth.auth']['extra']['raw_info']
         expect(raw_info).to eq(valid_user_xml)
       end
