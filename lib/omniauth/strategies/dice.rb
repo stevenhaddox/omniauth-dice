@@ -100,7 +100,7 @@ module OmniAuth
         @data = parse_response_data
         session['omniauth.auth'] ||= auth_hash
 
-        redirect request.env['omniauth.origin'] || '/'
+        super
       end
 
       def auth_hash
@@ -317,6 +317,7 @@ module OmniAuth
       def parse_response_data
         log :debug, '.parse_response_data'
         log :debug, "cas_server response.body:\r\n#{@raw_data}"
+        formatted_data = nil
         unless @raw_data.class == Hash # Webmock hack
           case options.format.to_sym
           when :json
@@ -324,8 +325,9 @@ module OmniAuth
           when :xml
             formatted_data = MultiXml.parse(@raw_data)['userinfo']
           end
-          log :debug, "Formatted response.body data: #{formatted_data}"
         end
+        formatted_data = formatted_data.nil? ? @raw_data : formatted_data
+        log :debug, "Formatted response.body data: #{formatted_data}"
 
         formatted_data
       end
