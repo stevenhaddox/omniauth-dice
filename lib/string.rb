@@ -9,9 +9,4 @@ class String
         .tr('-', '_')
         .downcase
   end
-
-  # Alias to .to_snake
-  def underscore
-    self.to_snake
-  end
 end
