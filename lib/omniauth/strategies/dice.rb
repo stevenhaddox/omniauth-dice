@@ -105,12 +105,12 @@ module OmniAuth
 
       def auth_hash
         log :debug, '.auth_hash'
-        {
+        Hashie::Mash.new( {
           'provider' => name,
           'uid'      => uid,
           'info'     => info,
           'extra'    => extra
-        }
+        } )
       end
 
       # Set the user's uid field for the auth_hash
