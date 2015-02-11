@@ -178,6 +178,14 @@ describe OmniAuth::Strategies::Dice, type: :strategy do
         raw_info = last_request.env['rack.session']['omniauth.auth']['extra']['raw_info']
         expect(raw_info).to eq(valid_user_xml)
       end
+
+      it 'should allow accessing auth_hash values via methods' do
+        header 'Ssl-Client-Cert', user_cert
+        get '/auth/dice'
+        follow_redirect!
+        expect(last_request.env['rack.session']['omniauth.auth']).to be_kind_of(Hash)
+        expect(last_request.env['rack.session']['omniauth.auth'].provider).to eq('dice')
+      end
     end
 
     context 'fail' do
