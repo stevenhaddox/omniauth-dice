@@ -86,16 +86,7 @@ module OmniAuth
       end
 
       def callback_phase
-        issuer_dn = env['omniauth.params']['issuer_dn']
-        if issuer_dn
-          response = connection.get query_url, { issuerDN: issuer_dn }
-        else
-          response = connection.get query_url
-        end
-        if !response || response.status.to_i >= 400
-          log :error, response.inspect
-          return fail!(:invalid_credentials)
-        end
+        response = authenticate_user
         @raw_data = response.body
         @data = parse_response_data
         session['omniauth.auth'] ||= auth_hash
@@ -146,6 +137,21 @@ module OmniAuth
         end
 
         tmp_hash
+      end
+
+      def authenticate_user
+        issuer_dn = env['omniauth.params']['issuer_dn']
+        if issuer_dn
+          response = connection.get query_url, { issuerDN: issuer_dn }
+        else
+          response = connection.get query_url
+        end
+        if !response || response.status.to_i >= 400
+          log :error, response.inspect
+          return fail!(:invalid_credentials)
+        end
+
+        response
       end
 
       # Default ['omniauth.auth']['info'] field names
