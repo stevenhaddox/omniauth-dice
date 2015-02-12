@@ -217,7 +217,7 @@ module OmniAuth
 
       # Identify if there's a domain w/ TLD in the common_name
       def auth_cn_with_tld?(common_name)
-        !!( common_name =~ /\w{3}\.\w+(\.\w{3,}+)?/ )
+        !!( common_name =~ /\w{2}\.\w+(\.\w{3,}+)?/ )
       end
 
       # Determine if the auth_hash does not have an email address
