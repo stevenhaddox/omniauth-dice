@@ -157,6 +157,20 @@ describe OmniAuth::Strategies::Dice do
         expect(npe).to eq(false)
       end
     end
+
+    it "should identify sample DNs as NPE / non-NPE properly" do
+      samples = [
+        {dn: '/C=US/O=A.D. Velopment/OU=AaA/OU=BBB/OU=C001/CN=JACKELOPE JERRY JR. 2B3C4D', result: false},
+        {dn: '/C=US/O=A.D. Velopment/OU=AaA/OU=BBB/OU=C001/CN=AARDVARK A.ALAN-A- 1A2B3C', result: false},
+        {dn: '/C=US/O=A.D. Velopment/OU=AaA/OU=BBB/OU=C001/CN=uc-1-100-10-100.vm.openstack.example.org', result: true},
+        {dn: '/C=US/O=A.D. Velopment/OU=AaA/OU=BBB/OU=C001/CN=aa.2-200-20-200.vm.openstack.example.org', result: true},
+        {dn: '/C=US/O=A.D. Velopment/OU=AaA/OU=BBB/OU=C001/CN=go.vm', result: true}
+      ]
+      samples.each do |dn_pair|
+        npe = @dice.send( :identify_npe, @all_info.merge({'common_name' => dn_pair[:dn]}) )
+        expect(npe).to eq(dn_pair[:result])
+      end
+    end
   end
 
   context ".primary_visa?" do
