@@ -10,8 +10,8 @@ a user's X509 certificate DN string to an Enterprise CAS server via REST.
 ## Installation
 
 Add this line to your application's Gemfile:
-```ruby
-gem 'omniauth-dice'
+
+    gem 'omniauth-dice', '~> 0.1'
 
 And then execute:
 
@@ -20,7 +20,6 @@ And then execute:
 Or install it yourself with:
 
     $ gem install omniauth-dice
-```
 
 ## Usage
 
@@ -79,6 +78,40 @@ Full configuration options are as follows:
 * `name_format` [Symbol] Format for auth_hash['info']['name']  
   Defaults to attempting DN common name -> full name -> first & last name  
   Valid options are: :cn, :full_name, :first_last_name to override
+
+## auth_hash Results
+
+The session's omniauth['auth'] hash will resond with the following structure:
+
+```
+{
+  "provider"=>"dice",
+  "uid"=>"cn=steven haddox,ou=rails,ou=ruby,ou=a,o=developer,c=us",
+  "info"=>{
+    "dn"=>"cn=steven haddox,ou=rails,ou=ruby,ou=a,o=developer,c=us",
+    "email"=>"steven.haddox@example.org",
+    "name"=>"steven haddox",
+    "primary_visa?"=>false,
+    "likely_npe?"=>false
+    # ...<other fields dynamically inserted>...
+  },
+  "extra"=>{
+    "raw_info"=>{
+      # ...parsed response from CAS server...
+    }
+  }
+}
+```
+
+The `provider`, `uid`, `info`, and `extra` fields follow omniauth best
+practices but there are a few computed fields from omniauth-dice worth being
+aware of:
+
+* `likely_npe?`: [Boolean] This field tries to detect if the client  
+  certificate / DN comes from a non-person entity (e.g., server) or a person.
+* `primary_visa?`: [Boolean] If the CAS server responds with an array of  
+  `visas`, this attribute will indicate if a specific visa is present.
+* `name`: [String] Returns the client's name as configured or uses defaults.
 
 ### SSL Client Certificate Notes
 
