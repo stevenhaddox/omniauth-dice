@@ -82,7 +82,7 @@ module OmniAuth
         log :debug, "Formatted issuer_dn: #{issuer_dn}"
         set_session_dn(issuer_dn, 'issuer') if issuer_dn
 
-        redirect callback_url
+        redirect callback_path
       end
 
       def callback_phase
