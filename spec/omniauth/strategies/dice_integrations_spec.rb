@@ -94,7 +94,7 @@ describe OmniAuth::Strategies::Dice, type: :strategy do
       expect(last_request.url).to eq('http://example.org/auth/dice')
       expect(last_request.env['rack.session']['omniauth.params']['user_dn']).to eq(user_dn.to_s)
       expect(last_request.env['rack.session']['omniauth.params']['issuer_dn']).to eq(issuer_dn)
-      expect(last_response.location).to eq('http://example.org/auth/dice/callback')
+      expect(last_response.location).to eq('/auth/dice/callback')
     end
 
     it "should set the client's DN (from header)" do
@@ -104,7 +104,7 @@ describe OmniAuth::Strategies::Dice, type: :strategy do
       expect(last_request.url).to eq('http://example.org/auth/dice')
       expect(last_request.env['rack.session']['omniauth.params']['user_dn']).to eq(user_dn.to_s)
       expect(last_request.env['rack.session']['omniauth.params']['issuer_dn']).to be_nil
-      expect(last_response.location).to eq('http://example.org/auth/dice/callback')
+      expect(last_response.location).to eq('/auth/dice/callback')
     end
 
     it "should set the issuer's DN (from header)" do
@@ -114,7 +114,7 @@ describe OmniAuth::Strategies::Dice, type: :strategy do
       expect(last_request.env['HTTP_SSL_CLIENT_I_DN']).to eq(raw_issuer_dn)
       expect(last_request.url).to eq('http://example.org/auth/dice')
       expect(last_request.env['rack.session']['omniauth.params']['issuer_dn']).to eq(issuer_dn)
-      expect(last_response.location).to eq('http://example.org/auth/dice/callback')
+      expect(last_response.location).to eq('/auth/dice/callback')
     end
   end
 
