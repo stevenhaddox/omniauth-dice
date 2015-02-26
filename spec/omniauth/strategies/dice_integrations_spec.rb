@@ -62,7 +62,6 @@ describe OmniAuth::Strategies::Dice, type: :strategy do
     self.app = Rack::Builder.app do
       use Rack::Session::Cookie, :secret => '1337geeks'
       use RackSessionAccess::Middleware
-      ap dice_options
       use OmniAuth::Strategies::Dice, dice_options
       run lambda{|env| [404, {'env' => env}, ["HELLO!"]]}
     end
@@ -81,6 +80,22 @@ describe OmniAuth::Strategies::Dice, type: :strategy do
     set_app!(defaults)
   end
 
+  describe "use_callback_url" do
+    it "should use the callback_url method instead of callback_path when specified" do
+      callback_path_opts = {
+        cas_server: 'http://example.org',
+        authentication_path: '/dn'
+      }
+      set_app!( callback_path_opts )
+      header 'Ssl-Client-Cert', user_cert
+      get '/auth/dice'
+      expect(last_request.env['HTTP_SSL_CLIENT_CERT']).to eq(user_cert)
+      expect(last_request.url).to eq('http://example.org/auth/dice')
+      expect(last_request.env['rack.session']['omniauth.params']['user_dn']).to eq(user_dn.to_s)
+      expect(last_request.env['rack.session']['omniauth.params']['issuer_dn']).to eq(issuer_dn)
+      expect(last_response.location).to eq('http://example.org/auth/dice/callback')
+    end
+  end
 
   describe '#request_phase' do
     it 'should fail without a client DN' do
