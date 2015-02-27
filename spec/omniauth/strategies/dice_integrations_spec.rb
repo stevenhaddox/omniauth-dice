@@ -82,11 +82,17 @@ describe OmniAuth::Strategies::Dice, type: :strategy do
 
   describe "use_callback_url" do
     it "should use the callback_url method instead of callback_path when specified" do
-      callback_path_opts = {
+      callback_url_opts = {
         cas_server: 'http://example.org',
-        authentication_path: '/dn'
+        authentication_path: '/dn',
+        use_callback_url: true
       }
-      set_app!( callback_path_opts )
+      self.app = Rack::Builder.app do
+        use Rack::Session::Cookie, :secret => '1337geeks'
+        use RackSessionAccess::Middleware
+        use OmniAuth::Strategies::Dice, callback_url_opts
+        run lambda{|env| [404, {'env' => env}, ["HELLO!"]]}
+      end
       header 'Ssl-Client-Cert', user_cert
       get '/auth/dice'
       expect(last_request.env['HTTP_SSL_CLIENT_CERT']).to eq(user_cert)
