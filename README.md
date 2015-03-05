@@ -63,6 +63,8 @@ Full configuration options are as follows:
 
 * `cas_server` [String] Required base URL for CAS server
 * `authentication_path` [String] URL path for endpoint, e.g. '/users'
+* `custom_callback_url` [String] Use a fully custom URL for callback endpoint  
+  This option overrides the `use_callback_url` option setting!
 * `use_callback_url` [Boolean] Use full URL vs path for callback endpoint  
   This is especially useful if your app runs as a sub-URI example.org/app_name
 * `return_field` [String] Optional path to append after DN string

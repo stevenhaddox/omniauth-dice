@@ -103,6 +103,29 @@ describe OmniAuth::Strategies::Dice, type: :strategy do
     end
   end
 
+  describe "custom_callback_url" do
+    it "should use the custom_callback_url provided instead of default callback_path|url when specified" do
+      callback_url_opts = {
+        cas_server: 'http://example.org',
+        authentication_path: '/dn',
+        custom_callback_url: 'http://example.org/sub-uri/auth/dice/callback'
+      }
+      self.app = Rack::Builder.app do
+        use Rack::Session::Cookie, :secret => '1337geeks'
+        use RackSessionAccess::Middleware
+        use OmniAuth::Strategies::Dice, callback_url_opts
+        run lambda{|env| [404, {'env' => env}, ["HELLO!"]]}
+      end
+      header 'Ssl-Client-Cert', user_cert
+      get '/auth/dice'
+      expect(last_request.env['HTTP_SSL_CLIENT_CERT']).to eq(user_cert)
+      expect(last_request.url).to eq('http://example.org/auth/dice')
+      expect(last_request.env['rack.session']['omniauth.params']['user_dn']).to eq(user_dn.to_s)
+      expect(last_request.env['rack.session']['omniauth.params']['issuer_dn']).to eq(issuer_dn)
+      expect(last_response.location).to eq('http://example.org/sub-uri/auth/dice/callback')
+    end
+  end
+
   describe '#request_phase' do
     it 'should fail without a client DN' do
       expect { get '/auth/dice' }.to raise_error(OmniAuth::Error, 'You need a valid DN to authenticate.')
