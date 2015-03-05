@@ -37,6 +37,7 @@ module OmniAuth
 
       option :dnc_options, {}
       option :cas_server, nil
+      option :custom_callback_url, nil
       option :use_callback_url, false
       option :authentication_path, nil
       option :return_field, 'info'
@@ -83,7 +84,7 @@ module OmniAuth
         log :debug, "Formatted issuer_dn: #{issuer_dn}"
         set_session_dn(issuer_dn, 'issuer') if issuer_dn
 
-        redirect options.use_callback_url==true ? callback_url : callback_path
+        redirect_for_callback
       end
 
       def callback_phase
@@ -126,6 +127,18 @@ module OmniAuth
         info = auth_info_custom(info)
 
         info
+      end
+
+      def redirect_for_callback
+        if options.custom_callback_url
+          redirect options.custom_callback_url
+        else
+          if options.use_callback_url == true
+            redirect callback_url
+          else
+            redirect callback_path
+          end
+        end
       end
 
       private
