@@ -156,7 +156,7 @@ module OmniAuth
       def authenticate_user
         issuer_dn = env['omniauth.params']['issuer_dn']
         if issuer_dn
-          response = connection.get query_url, { issuerDN: issuer_dn }
+          response = connection.get query_url, { issuerDn: issuer_dn }
         else
           response = connection.get query_url
         end
