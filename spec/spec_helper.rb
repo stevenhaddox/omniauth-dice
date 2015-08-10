@@ -1,11 +1,8 @@
+require 'codeclimate-test-reporter'
+CodeClimate::TestReporter.start
 require 'rubygems'
 require 'bundler'
 Bundler.setup :default, :development, :test
-
-require 'simplecov'
-SimpleCov.start do
-  add_filter '/spec/'
-end
 
 require 'capybara/rspec'
 require 'rack_session_access'
@@ -15,6 +12,8 @@ require 'awesome_print'
 require 'rack/test'
 require 'omniauth-dice'
 
+# Enable codeclimate coverage reports
+WebMock.disable_net_connect! allow: %w{codeclimate.com}
 RSpec.configure do |config|
   config.run_all_when_everything_filtered = true
   config.include Rack::Test::Methods

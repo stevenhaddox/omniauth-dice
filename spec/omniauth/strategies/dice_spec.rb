@@ -81,7 +81,7 @@ describe OmniAuth::Strategies::Dice do
 
     it 'should not set a name field if it is already defined' do
       dice = OmniAuth::Strategies::Dice.new( app, dice_default_opts )
-      name = dice.send( :set_name, @info_hash.merge({'name' => 'nightmare moon'}) )
+      name = dice.send(:set_name, @info_hash.merge({'name' => 'nightmare moon'}) )
       expect(name).to eq('nightmare moon')
     end
 
@@ -176,19 +176,19 @@ describe OmniAuth::Strategies::Dice do
   context ".primary_visa?" do
     it 'should return false if no visas are defined' do
       dice = OmniAuth::Strategies::Dice.new( app, dice_default_opts.merge({primary_visa: 'EQUESTRIA'}) )
-      visa_present = dice.send( :has_primary_visa?, { } )
+      visa_present = dice.send( :includes_primary_visa?, { } )
       expect(visa_present).to eq(false)
     end
 
     it "should return false if the visa is not present in ['info']['visas']" do
       dice = OmniAuth::Strategies::Dice.new( app, dice_default_opts.merge({primary_visa: 'EQUESTRIA'}) )
-      visa_present = dice.send( :has_primary_visa?, {'visas' => ['CLOUDSDALE','PONYVILLE']} )
+      visa_present = dice.send( :includes_primary_visa?, {'visas' => ['CLOUDSDALE','PONYVILLE']} )
       expect(visa_present).to eq(false)
     end
 
     it "should return true if the visa is present in ['info']['visas']" do
       dice = OmniAuth::Strategies::Dice.new( app, dice_default_opts.merge({primary_visa: 'EQUESTRIA'}) )
-      visa_present = dice.send( :has_primary_visa?, {'visas' => ['CLOUDSDALE','EQUESTRIA'] } )
+      visa_present = dice.send( :includes_primary_visa?, {'visas' => ['CLOUDSDALE','EQUESTRIA'] } )
       expect(visa_present).to eq(true)
     end
   end
