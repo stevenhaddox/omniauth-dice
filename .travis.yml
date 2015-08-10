@@ -6,7 +6,6 @@ rvm:
   - 2.1.5
   - 2.0.0
   - 1.9.3
-  - jruby-9000
 env:
   - RACK_ENV=test
 script: 'bundle exec rake'
