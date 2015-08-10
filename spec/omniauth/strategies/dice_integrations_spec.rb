@@ -176,7 +176,7 @@ describe OmniAuth::Strategies::Dice, type: :strategy do
         primary_visa: 'CLOUDSDALE'
       })
 
-      stub_request(:get, "https://example.org:3000/dn/cn=ruby%20certificate%20rbcert,dc=ruby-lang,dc=org/info.json?issuerDN=cn=ruby%20ca,dc=ruby-lang,dc=org").
+      stub_request(:get, "https://example.org:3000/dn/cn=ruby%20certificate%20rbcert,dc=ruby-lang,dc=org/info.json?issuerDn=cn=ruby%20ca,dc=ruby-lang,dc=org").
         with(:headers => {'Accept'=>'application/json', 'Content-Type'=>'application/json', 'Host'=>'example.org:3000', 'User-Agent'=>/^Faraday via Ruby.*$/, 'X-Xsrf-Useprotection'=>'false'}).
       to_return(status: 200, body: valid_user_json, headers: {})
     end
@@ -212,7 +212,7 @@ describe OmniAuth::Strategies::Dice, type: :strategy do
             client_key:  'spec/certs/key.np.pem'
           }
         })
-        stub_request(:get, "https://example.org:3000/dn/cn=ruby%20certificate%20rbcert,dc=ruby-lang,dc=org/info.xml?issuerDN=cn=ruby%20ca,dc=ruby-lang,dc=org").
+        stub_request(:get, "https://example.org:3000/dn/cn=ruby%20certificate%20rbcert,dc=ruby-lang,dc=org/info.xml?issuerDn=cn=ruby%20ca,dc=ruby-lang,dc=org").
         with(:headers => {'Accept'=>'application/xml', 'Content-Type'=>'application/xml', 'Host'=>'example.org:3000', 'User-Agent'=>/^Faraday via Ruby.*$/, 'X-Xsrf-Useprotection'=>'false'}).
         to_return(status: 200, body: valid_user_xml, headers: {})
 
@@ -234,7 +234,7 @@ describe OmniAuth::Strategies::Dice, type: :strategy do
 
     context 'fail' do
       it 'should raise a 404 with text for a non-existent user DN' do
-        stub_request(:get, "https://example.org:3000/dn/cn=ruby%20certificate%20rbcert,dc=ruby-lang,dc=org/info.json?issuerDN=cn=ruby%20ca,dc=ruby-lang,dc=org").
+        stub_request(:get, "https://example.org:3000/dn/cn=ruby%20certificate%20rbcert,dc=ruby-lang,dc=org/info.json?issuerDn=cn=ruby%20ca,dc=ruby-lang,dc=org").
         with(:headers => {'Accept'=>'application/json', 'Content-Type'=>'application/json', 'Host'=>'example.org:3000', 'User-Agent'=>/^Faraday via Ruby.*$/, 'X-Xsrf-Useprotection'=>'false'}).
         to_return(status: 404, body: "User of dn:cn=ruby certificate rbcert,dc=ruby-lang,dc=org not found", headers: {})
 
