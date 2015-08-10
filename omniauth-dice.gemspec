@@ -8,22 +8,24 @@ Gem::Specification.new do |spec|
   spec.version       = Omniauth::Dice::VERSION
   spec.authors       = ['Steven Haddox']
   spec.email         = ['steven.haddox@gmail.com']
-  spec.summary       = %q{DN Interoperable Conversion Expert Strategy}
-  spec.description   = %q{Simple gem to enable rack powered Ruby apps to authenticate via REST with an enterprise CAS authentication server via X509 client certificates.}
-  spec.homepage      = "https://github.com/stevenhaddox/omniauth-dice"
-  spec.license       = "MIT"
+  spec.summary       = 'DN Interoperable Conversion Expert Strategy'
+  spec.description   = 'Simple gem to enable rack powered Ruby apps to
+authenticate via REST with an enterprise CAS authentication server via X509
+client certificates.'
+  spec.homepage      = 'https://github.com/stevenhaddox/omniauth-dice'
+  spec.license       = 'MIT'
 
   spec.files         = `git ls-files -z`.split("\x0")
-  spec.executables   = spec.files.grep(%r{^bin/}) { |f| File.basename(f) }
-  spec.test_files    = spec.files.grep(%r{^(test|spec|features)/})
-  spec.require_paths = ["lib"]
+  spec.executables   = spec.files.grep(/^bin\//) { |f| File.basename(f) }
+  spec.test_files    = spec.files.grep(/^(test|spec|features)\//)
+  spec.require_paths = ['lib']
 
   spec.required_ruby_version = '>= 1.9.3'
 
   spec.add_development_dependency 'awesome_print'
   spec.add_development_dependency 'bundler'
   spec.add_development_dependency 'capybara'
-  spec.add_development_dependency 'coveralls'
+  spec.add_development_dependency 'codeclimate-test-reporter'
   spec.add_development_dependency 'rack_session_access'
   spec.add_development_dependency 'redcarpet'
   spec.add_development_dependency 'rspec'
@@ -46,5 +48,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'omniauth', '~> 1.0'
 
   spec.cert_chain  = ['certs/stevenhaddox.pem']
-  spec.signing_key = File.expand_path("~/.gem/certs/gem-private_key.pem") if $0 =~ /gem\z/
+  if $PROGRAM_NAME =~ /gem\z/
+    spec.signing_key = File.expand_path('~/.gem/certs/gem-private_key.pem')
+  end
 end

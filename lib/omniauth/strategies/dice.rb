@@ -7,9 +7,10 @@ require 'dnc'
 
 class RequiredCustomParamError < StandardError; end
 
+# OmniAuth Dice strategy
 module OmniAuth
+  # OmniAuth Dice strategy
   module Strategies
-
     #
     # Provides omniauth authentication integration with a CAS server
     #
@@ -98,12 +99,12 @@ module OmniAuth
 
       def auth_hash
         log :debug, '.auth_hash'
-        Hashie::Mash.new( {
+        Hashie::Mash.new(
           'provider' => name,
           'uid'      => uid,
           'info'     => info,
           'extra'    => extra
-        } )
+        )
       end
 
       # Set the user's uid field for the auth_hash
@@ -156,7 +157,7 @@ module OmniAuth
       def authenticate_user
         issuer_dn = env['omniauth.params']['issuer_dn']
         if issuer_dn
-          response = connection.get query_url, { issuerDn: issuer_dn }
+          response = connection.get query_url, issuerDn: issuer_dn
         else
           response = connection.get query_url
         end
@@ -197,7 +198,7 @@ module OmniAuth
       def auth_info_custom(info)
         info['common_name'] = get_dn(info['dn']).cn
         set_name(info)
-        has_primary_visa?(info)
+        includes_primary_visa?(info)
         info['likely_npe?'] = identify_npe(info)
 
         info
@@ -208,19 +209,19 @@ module OmniAuth
         # Do NOT override the value if it's returned from the CAS server
         return info['name'] if info['name']
         info['name'] = case options.name_format
-        when :cn
-          info['common_name']
-        when :full_name
-          info['full_name']
-        when :first_last_name
-          "#{info['first_name']} #{info['last_name']}"
-        end
+                       when :cn
+                         info['common_name']
+                       when :full_name
+                         info['full_name']
+                       when :first_last_name
+                         "#{info['first_name']} #{info['last_name']}"
+                       end
         info['name'] ||= info['common_name'] || info['full_name'] ||
                          "#{info['first_name']} #{info['last_name']}"
       end
 
       # Determine if client has the primary visa
-      def has_primary_visa?(info)
+      def includes_primary_visa?(info)
         return info['primary_visa?'] = false unless info['visas']
         return info['primary_visa?'] = false unless options.primary_visa
         info['primary_visa?'] = info['visas'].include?(options.primary_visa)
@@ -237,12 +238,12 @@ module OmniAuth
 
       # Identify if there's a domain w/ TLD in the common_name
       def auth_cn_with_tld?(common_name)
-        !!( common_name =~ /\w{2}\.\w+(\.\w{3,}+)?/ )
+        /\w{2}\.\w+(\.\w{3,}+)?/.match(common_name).nil? ? false : true
       end
 
       # Determine if the auth_hash does not have an email address
       def auth_info_missing_email?(info)
-        !( info['email'] ) # !! returns false if no email, ! returns true
+        !(info['email']) # !! returns false if no email, ! returns true
       end
 
       # Determine if the auth_hash has an email but no name fields
@@ -259,16 +260,12 @@ module OmniAuth
 
       # Determine if any name fields are present in the auth_hash['info']
       def auth_info_has_any_name?(info)
-        name   = info['full_name']
-        name ||= info['first_name']
-        name ||= info['last_name']
-        !!(name)
+        [info['full_name'], info['first_name'], info['last_name']].any?
       end
 
       # Coordinate getting DN from cert, fallback to header
-      def get_dn_by_type(type='subject')
-        raw_dn   = get_dn_from_certificate(type)
-        raw_dn ||= get_dn_from_header(type)
+      def get_dn_by_type(type = 'subject')
+        get_dn_from_certificate(type) || get_dn_from_header(type)
       end
 
       # Reads the DN from headers
@@ -298,7 +295,7 @@ module OmniAuth
       end
 
       # Parse the DN out of an SSL X509 Client Certificate
-      def parse_dn_from_certificate(certificate, type='subject')
+      def parse_dn_from_certificate(certificate, type = 'subject')
         certificate.send(type.to_sym).to_s
       end
 
@@ -307,11 +304,11 @@ module OmniAuth
         log :debug, '.connection'
 
         @conn ||= Faraday.new(url: options.cas_server, ssl: ssl_hash) do |conn|
-          conn.headers  = headers
+          conn.headers = headers
           conn.response :logger                  # log requests to STDOUT
-          conn.response :xml,  :content_type => /\bxml$/
-          conn.response :json, :content_type => /\bjson$/
-          conn.adapter  :excon
+          conn.response :xml,  content_type: /\bxml$/
+          conn.response :json, content_type: /\bjson$/
+          conn.adapter :excon
         end
       end
 
@@ -326,17 +323,26 @@ module OmniAuth
 
       # Build out the query URL for CAS server with DN params
       def query_url
-        user_dn    = env['omniauth.params']['user_dn']
-        build_query = "#{options.cas_server}#{options.authentication_path}"
+        user_dn      = env['omniauth.params']['user_dn']
+        build_query  = "#{options.cas_server}#{options.authentication_path}"
         build_query += "/#{user_dn}"
         build_query += "/#{options.return_field}.#{options.format}"
-        URI::encode(build_query)
+        URI.encode(build_query)
       end
 
       # Detect data format, parse with appropriate library
       def parse_response_data
         log :debug, '.parse_response_data'
         log :debug, "cas_server response.body:\r\n#{@raw_data}"
+        formatted_data = format_data
+        formatted_data = formatted_data.nil? ? @raw_data : formatted_data
+        log :debug, "Formatted response.body: #{formatted_data}"
+
+        formatted_data
+      end
+
+      # Parse data by specified format
+      def format_data
         formatted_data = nil
         unless @raw_data.class == Hash # Webmock hack
           case options.format.to_sym
@@ -346,21 +352,19 @@ module OmniAuth
             formatted_data = MultiXml.parse(@raw_data)['userinfo']
           end
         end
-        formatted_data = formatted_data.nil? ? @raw_data : formatted_data
-        log :debug, "Formatted response.body data: #{formatted_data}"
 
         formatted_data
       end
 
-      def set_session_dn(dn_string, type='subject')
+      def set_session_dn(dn_string, type = 'subject')
         dn_type = case type
-        when 'subject'
-          'user_dn'
-        when 'issuer'
-          'issuer_dn'
-        else
-          fail "Invalid DN string type"
-        end
+                  when 'subject'
+                    'user_dn'
+                  when 'issuer'
+                    'issuer_dn'
+                  else
+                    fail 'Invalid DN string type'
+                  end
         session['omniauth.params'] ||= {}
         session['omniauth.params'][dn_type] = dn_string
       end
@@ -399,7 +403,7 @@ module OmniAuth
         custom_order = %w(cn l st ou o c street dc uid)
         default_opts = { dn_string: dn_str, string_order: custom_order }
         dnc_config = unhashie(options.dnc_options)
-        DN.new( default_opts.merge(dnc_config) )
+        DN.new(default_opts.merge(dnc_config))
       end
     end
   end
