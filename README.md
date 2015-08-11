@@ -11,7 +11,7 @@ a user's X509 certificate DN string to an Enterprise CAS server via REST.
 
 Add this line to your application's Gemfile:
 
-    gem 'omniauth-dice', '~> 0.1'
+    gem 'omniauth-dice', '~> 0.2.2'
 
 And then execute:
 
