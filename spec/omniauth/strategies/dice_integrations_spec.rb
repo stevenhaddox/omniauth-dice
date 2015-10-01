@@ -76,11 +76,10 @@ describe OmniAuth::Strategies::Dice, type: :strategy do
 #    header 'Ssl-Client-Cert', nil
 #    header 'Ssl-Client-S-Dn', nil
 #    header 'Ssl-Client-I-Dn', nil
-    defaults={
+    @defaults = {
       cas_server: 'http://example.org',
       authentication_path: '/dn'
     }
-    set_app!(defaults)
   end
 
   describe "use_callback_url" do
@@ -121,10 +120,12 @@ describe OmniAuth::Strategies::Dice, type: :strategy do
 
   describe '#request_phase' do
     it 'should fail without a client DN' do
+      set_app!(@defaults)
       expect { get '/auth/dice' }.to raise_error(OmniAuth::Error, 'You need a valid DN to authenticate.')
     end
 
     it "should set the client & issuer's DN (from certificate)" do
+      set_app!(@defaults)
       header 'Ssl-Client-Cert', user_cert
       get '/auth/dice'
       expect(last_request.env['HTTP_SSL_CLIENT_CERT']).to eq(user_cert)
@@ -135,6 +136,7 @@ describe OmniAuth::Strategies::Dice, type: :strategy do
     end
 
     it "should set the client's DN (from header)" do
+      set_app!(@defaults)
       header 'Ssl-Client-S-Dn', raw_dn
       get '/auth/dice'
       expect(last_request.env['HTTP_SSL_CLIENT_S_DN']).to eq(raw_dn)
@@ -145,6 +147,7 @@ describe OmniAuth::Strategies::Dice, type: :strategy do
     end
 
     it "should set the issuer's DN (from header)" do
+      set_app!(@defaults)
       header 'Ssl-Client-S-Dn', raw_dn
       header 'Ssl-Client-I-Dn', raw_issuer_dn
       get '/auth/dice'
