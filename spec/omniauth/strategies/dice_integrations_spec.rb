@@ -73,9 +73,6 @@ describe OmniAuth::Strategies::Dice, type: :strategy do
   end
 
   before(:all) do
-#    header 'Ssl-Client-Cert', nil
-#    header 'Ssl-Client-S-Dn', nil
-#    header 'Ssl-Client-I-Dn', nil
     @defaults = {
       cas_server: 'http://example.org',
       authentication_path: '/dn'
