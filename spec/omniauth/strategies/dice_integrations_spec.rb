@@ -118,7 +118,9 @@ describe OmniAuth::Strategies::Dice, type: :strategy do
   describe '#request_phase' do
     it 'should fail without a client DN' do
       set_app!(@defaults)
-      expect { get '/auth/dice' }.to raise_error(OmniAuth::Error, 'You need a valid DN to authenticate.')
+      get '/auth/dice'
+      expect(last_request.env['omniauth.error.type']).to eq(:"You need a valid DN to authenticate.")
+      expect(last_response.location).to eq('/auth/failure?message=You need a valid DN to authenticate.&strategy=dice')
     end
 
     it "should set the client & issuer's DN (from certificate)" do
@@ -234,6 +236,10 @@ describe OmniAuth::Strategies::Dice, type: :strategy do
 
         header 'Ssl-Client-Cert', user_cert
         get '/auth/dice'
+#      raise last_request.inspect.to_s
+#      raise last_request.env['rack.session']['omniauth.params']
+#      raise last_request.env['rack.version'].inspect.to_s
+#      raise last_request.env['omniauth.error.type'].inspect
         expect { get '/auth/dice'; follow_redirect! }.to raise_error(OmniAuth::Error, 'invalid_credentials')
       end
     end
