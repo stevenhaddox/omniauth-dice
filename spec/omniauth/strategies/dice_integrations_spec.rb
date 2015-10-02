@@ -73,11 +73,10 @@ describe OmniAuth::Strategies::Dice, type: :strategy do
   end
 
   before(:all) do
-    defaults={
+    @defaults = {
       cas_server: 'http://example.org',
       authentication_path: '/dn'
     }
-    set_app!(defaults)
   end
 
   describe "use_callback_url" do
@@ -87,12 +86,7 @@ describe OmniAuth::Strategies::Dice, type: :strategy do
         authentication_path: '/dn',
         use_callback_url: true
       }
-      self.app = Rack::Builder.app do
-        use Rack::Session::Cookie, :secret => '1337geeks'
-        use RackSessionAccess::Middleware
-        use OmniAuth::Strategies::Dice, callback_url_opts
-        run lambda{|env| [404, {'env' => env}, ["HELLO!"]]}
-      end
+      set_app!(callback_url_opts)
       header 'Ssl-Client-Cert', user_cert
       get '/auth/dice'
       expect(last_request.env['HTTP_SSL_CLIENT_CERT']).to eq(user_cert)
@@ -110,12 +104,7 @@ describe OmniAuth::Strategies::Dice, type: :strategy do
         authentication_path: '/dn',
         custom_callback_url: 'http://example.org/sub-uri/auth/dice/callback'
       }
-      self.app = Rack::Builder.app do
-        use Rack::Session::Cookie, :secret => '1337geeks'
-        use RackSessionAccess::Middleware
-        use OmniAuth::Strategies::Dice, callback_url_opts
-        run lambda{|env| [404, {'env' => env}, ["HELLO!"]]}
-      end
+      set_app!(callback_url_opts)
       header 'Ssl-Client-Cert', user_cert
       get '/auth/dice'
       expect(last_request.env['HTTP_SSL_CLIENT_CERT']).to eq(user_cert)
@@ -128,10 +117,14 @@ describe OmniAuth::Strategies::Dice, type: :strategy do
 
   describe '#request_phase' do
     it 'should fail without a client DN' do
-      expect { get '/auth/dice' }.to raise_error(OmniAuth::Error, 'You need a valid DN to authenticate.')
+      set_app!(@defaults)
+      get '/auth/dice'
+      expect(last_request.env['omniauth.error.type']).to eq(:"You need a valid DN to authenticate.")
+      expect(last_response.location).to eq('/auth/failure?message=You need a valid DN to authenticate.&strategy=dice')
     end
 
     it "should set the client & issuer's DN (from certificate)" do
+      set_app!(@defaults)
       header 'Ssl-Client-Cert', user_cert
       get '/auth/dice'
       expect(last_request.env['HTTP_SSL_CLIENT_CERT']).to eq(user_cert)
@@ -142,6 +135,7 @@ describe OmniAuth::Strategies::Dice, type: :strategy do
     end
 
     it "should set the client's DN (from header)" do
+      set_app!(@defaults)
       header 'Ssl-Client-S-Dn', raw_dn
       get '/auth/dice'
       expect(last_request.env['HTTP_SSL_CLIENT_S_DN']).to eq(raw_dn)
@@ -152,6 +146,7 @@ describe OmniAuth::Strategies::Dice, type: :strategy do
     end
 
     it "should set the issuer's DN (from header)" do
+      set_app!(@defaults)
       header 'Ssl-Client-S-Dn', raw_dn
       header 'Ssl-Client-I-Dn', raw_issuer_dn
       get '/auth/dice'
@@ -164,7 +159,7 @@ describe OmniAuth::Strategies::Dice, type: :strategy do
 
   describe '#callback_phase' do
     before(:each) do
-      set_app!({
+      callback_phase_opts = {
         cas_server:          'https://example.org:3000',
         authentication_path: '/dn',
         dnc_options: { transformation: 'downcase' },
@@ -174,8 +169,8 @@ describe OmniAuth::Strategies::Dice, type: :strategy do
           client_key:  'spec/certs/key.np.pem'
         },
         primary_visa: 'CLOUDSDALE'
-      })
-
+      }
+      set_app!(callback_phase_opts)
       stub_request(:get, "https://example.org:3000/dn/cn=ruby%20certificate%20rbcert,dc=ruby-lang,dc=org/info.json?issuerDn=cn=ruby%20ca,dc=ruby-lang,dc=org").
         with(:headers => {'Accept'=>'application/json', 'Content-Type'=>'application/json', 'Host'=>'example.org:3000', 'User-Agent'=>/^Faraday via Ruby.*$/, 'X-Xsrf-Useprotection'=>'false'}).
       to_return(status: 200, body: valid_user_json, headers: {})
@@ -200,7 +195,7 @@ describe OmniAuth::Strategies::Dice, type: :strategy do
       end
 
       it 'should return a 200 with an XML object of user information on success' do
-        set_app!({
+        xml_request_opts = {
           cas_server:          'https://example.org:3000',
           authentication_path: '/dn',
           format_header:       'application/xml',
@@ -211,7 +206,8 @@ describe OmniAuth::Strategies::Dice, type: :strategy do
             client_cert: 'spec/certs/client.pem',
             client_key:  'spec/certs/key.np.pem'
           }
-        })
+        }
+        set_app!(xml_request_opts)
         stub_request(:get, "https://example.org:3000/dn/cn=ruby%20certificate%20rbcert,dc=ruby-lang,dc=org/info.xml?issuerDn=cn=ruby%20ca,dc=ruby-lang,dc=org").
         with(:headers => {'Accept'=>'application/xml', 'Content-Type'=>'application/xml', 'Host'=>'example.org:3000', 'User-Agent'=>/^Faraday via Ruby.*$/, 'X-Xsrf-Useprotection'=>'false'}).
         to_return(status: 200, body: valid_user_xml, headers: {})
@@ -240,7 +236,9 @@ describe OmniAuth::Strategies::Dice, type: :strategy do
 
         header 'Ssl-Client-Cert', user_cert
         get '/auth/dice'
-        expect { get '/auth/dice'; follow_redirect! }.to raise_error(OmniAuth::Error, 'invalid_credentials')
+        follow_redirect! # Needed to hit /auth/dice/callback & trigger errors!
+        expect(last_request.env['omniauth.error.type']).to eq(:invalid_credentials)
+        expect(last_response.location).to eq('/auth/failure?message=invalid_credentials&strategy=dice')
       end
     end
   end

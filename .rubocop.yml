@@ -7,3 +7,4 @@ AllCops:
   - 'vendor/cache/**/*'
   - 'vendor/bundle/**/*'
   - '**/gems/**/*'
+  - 'omniauth-dice.gemspec'
