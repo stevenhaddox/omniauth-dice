@@ -236,11 +236,9 @@ describe OmniAuth::Strategies::Dice, type: :strategy do
 
         header 'Ssl-Client-Cert', user_cert
         get '/auth/dice'
-#      raise last_request.inspect.to_s
-#      raise last_request.env['rack.session']['omniauth.params']
-#      raise last_request.env['rack.version'].inspect.to_s
-#      raise last_request.env['omniauth.error.type'].inspect
-        expect { get '/auth/dice'; follow_redirect! }.to raise_error(OmniAuth::Error, 'invalid_credentials')
+        follow_redirect! # Needed to hit /auth/dice/callback & trigger errors!
+        expect(last_request.env['omniauth.error.type']).to eq(:invalid_credentials)
+        expect(last_response.location).to eq('/auth/failure?message=invalid_credentials&strategy=dice')
       end
     end
   end

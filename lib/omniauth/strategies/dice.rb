@@ -90,6 +90,7 @@ module OmniAuth
 
       def callback_phase
         response = authenticate_user
+        return fail!(:invalid_credentials) if response == nil
         @raw_data = response.body
         @data = parse_response_data
         session['omniauth.auth'] ||= auth_hash
@@ -163,7 +164,7 @@ module OmniAuth
         end
         if !response || response.status.to_i >= 400
           log :error, response.inspect
-          return fail!(:invalid_credentials)
+          return nil
         end
 
         response
