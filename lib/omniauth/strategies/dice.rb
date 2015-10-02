@@ -90,7 +90,7 @@ module OmniAuth
 
       def callback_phase
         response = authenticate_user
-        return fail!(:invalid_credentials) if response == nil
+        return fail!(:invalid_credentials) if response.nil?
         @raw_data = response.body
         @data = parse_response_data
         session['omniauth.auth'] ||= auth_hash
@@ -230,11 +230,11 @@ module OmniAuth
 
       # Determine if a client is likely a non-person entity
       def identify_npe(info)
-        info['likely_npe?']   = nil
+        info['likely_npe?'] = nil
         return true  if auth_cn_with_tld?(info['common_name']) == true
-        return true  if auth_info_missing_email?(info)         == true
-        return true  if auth_has_email_without_names?(info)    == true
-        return false if auth_has_email_with_any_name?(info)    == true
+        return true  if auth_info_missing_email?(info) == true
+        return true  if auth_has_email_without_names?(info) == true
+        return false if auth_has_email_with_any_name?(info) == true
       end
 
       # Identify if there's a domain w/ TLD in the common_name
@@ -306,7 +306,7 @@ module OmniAuth
 
         @conn ||= Faraday.new(url: options.cas_server, ssl: ssl_hash) do |conn|
           conn.headers = headers
-          conn.response :logger                  # log requests to STDOUT
+          conn.response :logger # log requests to STDOUT
           conn.response :xml,  content_type: /\bxml$/
           conn.response :json, content_type: /\bjson$/
           conn.adapter :excon
@@ -333,7 +333,6 @@ module OmniAuth
 
       # Detect data format, parse with appropriate library
       def parse_response_data
-        log :debug, '.parse_response_data'
         log :debug, "cas_server response.body:\r\n#{@raw_data}"
         formatted_data = format_data
         formatted_data = formatted_data.nil? ? @raw_data : formatted_data
