@@ -63,7 +63,6 @@ module OmniAuth
 
       # Determine if required arguments are present or fail hard
       def validate_required_params
-        log :debug, '.validate_required_params'
         required_params.each do |param|
           unless options.send(param)
             error_msg = "omniauth-dice error: #{param} is required"
@@ -307,8 +306,9 @@ module OmniAuth
         @conn ||= Faraday.new(url: options.cas_server, ssl: ssl_hash) do |conn|
           conn.headers = headers
           conn.response :logger # log requests to STDOUT
-          conn.response :xml,  content_type: /\bxml$/
-          conn.response :json, content_type: /\bjson$/
+          format = options.format
+          conn.response(:xml,  content_type: /\bxml$/) if format == 'xml'
+          conn.response(:json, content_type: /\bjson$/) if format == 'json'
           conn.adapter :excon
         end
       end
