@@ -1,0 +1,8 @@
+languages:
+  Ruby: true
+engines:
+  rubocop:
+    enabled: true
+exclude_paths:
+  - "test/*"
+  - "spec/*"
