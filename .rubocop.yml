@@ -8,3 +8,5 @@ AllCops:
   - 'vendor/bundle/**/*'
   - '**/gems/**/*'
   - 'omniauth-dice.gemspec'
+Style/FrozenStringLiteralComment:
+  Enabled: false

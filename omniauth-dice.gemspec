@@ -39,16 +39,15 @@ client certificates.'
 
   spec.add_dependency 'addressable', '~> 2.4.0'
   spec.add_dependency 'cert_munger', '~> 0.2.2', '< 1.0'
-  spec.add_dependency 'dnc', '~> 1.0'
+  spec.add_dependency 'dnc', '~> 0.1.9'
   spec.add_dependency 'excon', '~> 0.43'
   spec.add_dependency 'faraday', '~> 0.9'
   spec.add_dependency 'faraday_middleware', '~> 0.9'
   spec.add_dependency 'hashie', '~> 3.4.6'
   spec.add_dependency 'logging'
-  spec.add_dependency 'omniauth', '< 1.5.0'
   spec.add_dependency 'multi_xml', '~> 0.5'
   spec.add_dependency 'nokogiri', '< 1.7.0'
-  spec.add_dependency 'omniauth', '~> 1.0'
+  spec.add_dependency 'omniauth', '< 1.5.0', '> 1.0'
 
   spec.cert_chain  = ['certs/stevenhaddox.pem']
   if $PROGRAM_NAME =~ /gem\z/
